@@ -1,7 +1,9 @@
 NAME := jumpstreet
 INSTALL_STAMP := .install.stamp
 POETRY := $(shell command -v poetry 2> /dev/null)
-
+PORT := 5556
+RATE := 10
+DATA := /mnt/data/KITTI/raw/2011_09_26/2011_09_26_drive_0001_sync/image_02/data
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -13,6 +15,8 @@ help:
 		@echo "  lint        run the code linters"
 		@echo "  format      reformat code"
 		@echo "  test        run all the tests"
+		@echo "  run         run the whole shebang"
+		@ECHO "  runreplay   run with replay testing"
 		@echo ""
 		@echo "Check the Makefile to know exactly what each target is doing."
 
@@ -43,3 +47,14 @@ format: $(INSTALL_STAMP)
 .PHONY: test
 test: $(INSTALL_STAMP)
 		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 100 --cov $(NAME)
+
+.PHONY: run_pm
+run_pm: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/api/process_manager.py --port $(PORT)
+
+.PHONY: run_replay
+run_replay: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/api/replayer.py $(DATA) --rate $(RATE) --pm_port $(PORT)
+		
+
+		

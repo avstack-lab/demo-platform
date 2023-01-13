@@ -1,19 +1,25 @@
 [tool.poetry]
-name = "jump-street"
+name = "jumpstreet"
 version = "0.1.0-alpha.1"
 description = "Replay system for pole vaulting"
 authors = ["Spencer Hallyburton <spencer@shally.dev>"]
 readme = "README.md"
-repository = "https://github.com/percep-tech/jump-street"
+repository = "https://github.com/percep-tech/jumpstreet"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
 ]
+packages = [{include = "jumpstreet"}]
 
 [tool.poetry.dependencies]
 python = "^3.7"
 numpy = "^1.19"
 tqdm = "^4"
+pyzmq = "^25.0"
+opencv-python = ">=4.3, <4.7"
+imagezmq = {path="third_party/imagezmq", develop=true}
+imutils = "^0.5"
+jsonpickle = "^3.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7"
