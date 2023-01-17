@@ -3,7 +3,8 @@ INSTALL_STAMP := .install.stamp
 POETRY := $(shell command -v poetry 2> /dev/null)
 PORT := 5556
 RATE := 10
-DATA := /mnt/data/KITTI/raw/2011_09_26/2011_09_26_drive_0001_sync/image_02/data
+# DATA := /mnt/data/KITTI/raw/2011_09_26/2011_09_26_drive_0001_sync/image_02/data
+DATA := /home/spencer/Documents/PercepTech/Technical/jumpstreet/data/TUD-Campus/img1
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -50,11 +51,20 @@ test: $(INSTALL_STAMP)
 
 .PHONY: run_pm
 run_pm: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/api/process_manager.py --port $(PORT)
+		$(POETRY) run python jumpstreet/process_manager.py --port $(PORT)
 
 .PHONY: run_replay
 run_replay: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/api/replayer.py $(DATA) --rate $(RATE) --pm_port $(PORT)
-		
+		$(POETRY) run python jumpstreet/replayer.py $(DATA) --rate $(RATE) --pm_port $(PORT)
 
-		
+.PHONY: run_broker
+run_broker: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/broker.py loadbalancing --frontend=5555 --backend=5556
+
+.PHONY: run_client
+run_client: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/client.py clientwithrouter --host localhost --port 5555
+
+.PHONY: run_worker
+run_worker: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/worker.py workerwithrouter append-world --host localhost --port 5556

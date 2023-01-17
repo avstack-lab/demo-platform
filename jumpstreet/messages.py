@@ -22,9 +22,18 @@ class SensorStartup(Message):
 
 
 class SensorStartupReply(Message):
-    def __init__(self, sensor_name, DATA_PORT) -> None:
-        self.DATA_PORT = DATA_PORT
+    def __init__(self, sensor_name, IM_IN_PORT, ANALY_OUT_PORT) -> None:
+        self.IM_IN_PORT = IM_IN_PORT
+        self.ANALY_OUT_PORT = ANALY_OUT_PORT
         self.sensor_name = sensor_name
+
+
+class SensorAnalysisOutput(Message):
+    def __init__(self, sensor_name, detections, tracks, trigger) -> None:
+        self.sensor_name = sensor_name
+        self.detections = detections
+        self.tracks = tracks
+        self.trigger = trigger
 
 
 class UnknownMessageError(Exception):
