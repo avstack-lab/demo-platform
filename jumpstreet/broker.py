@@ -59,7 +59,7 @@ class LoadBalancingBroker():
                 # -- client discovery and acknowledgement
                 reply = b"OK"
                 self.frontend.send_multipart([client, b"", reply])
-                self.poller.unregister(self.frontend)
+                # self.poller.unregister(self.frontend)
             else:
                 # -- client requests
                 worker = self.workers.pop(0)

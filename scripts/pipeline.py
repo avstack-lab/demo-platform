@@ -7,6 +7,10 @@ class AppendPipeline():
         return in_string + self.append_string
 
 
+class AnalyzeVideo():
+    """Analyzes videos with tracks"""
+
+
 def init_pipeline(pipeline_type):
     if 'append' in pipeline_type:
         return AppendPipeline(pipeline_type.replace('append-', ''))

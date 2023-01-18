@@ -1,7 +1,7 @@
 import zmq
 import argparse
 import uuid
-from jumpstreet import pipeline as jpipe
+from scripts import pipeline as jpipe
 
 
 class Worker():
@@ -66,6 +66,7 @@ def main(args):
             worker.poll()
     finally:
         worker.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Initialize a worker and pipeline')

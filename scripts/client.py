@@ -37,7 +37,7 @@ class ClientWithRouter(Client):
         super().__init__(context, HOST, PORT, identifier, pattern=zmq.REQ, verbose=verbose)
 
         # tell broker we are ready to go (expect an immediate reply)
-        print('sending startup message...', end='')
+        self.print('sending startup message...', end='')
         self.socket.send(b"READY")
         print('done')
         self.print('waiting for acknowledge...', end='')
