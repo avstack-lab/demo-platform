@@ -82,7 +82,6 @@ def init_broker(broker_type):
 
 
 def main(args):
-    # context = zmq.Context.instance()
     context = SerializingContext()
     broker = init_broker(args.broker)(context,
         FRONTEND=args.frontend, BACKEND=args.backend, verbose=args.verbose)

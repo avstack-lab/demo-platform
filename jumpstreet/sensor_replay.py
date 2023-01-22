@@ -68,7 +68,6 @@ def start_client(task, *args):
 
 def main_single(HOST, PORT, identifier, send_rate, send_dir):
     """Runs sending on a single client"""
-    # context = zmq.Context.instance()
     context = SerializingContext()
     replayer = SensorDataReplayer(context, HOST=HOST, PORT=PORT,
         identifier=identifier, send_dir=send_dir)

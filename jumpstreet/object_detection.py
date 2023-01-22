@@ -6,6 +6,7 @@ import zmq
 import multiprocessing
 from time import sleep
 from jumpstreet.utils import init_some_end, BaseClass
+from jumpstreet.context import SerializingContext
 
 
 class ObjectDetection(BaseClass):
@@ -27,8 +28,12 @@ class ObjectDetection(BaseClass):
         self.print(f'ready to start', end='\n')
 
     def poll(self):
+        """Poll for messages
+        
+        Address is the place to send back data"""
+
         # -- get data from frontend
-        address, empty, request = self.frontend.recv_multipart()
+        address, metadata, array = self.frontend.recv_array_multipart(copy=False)
         # -- process data
         detections = b"no detections yet"
         self.n_imgs += 1
@@ -49,7 +54,7 @@ def start_worker(task, *args):
 
 def main_single(IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier):
     """Runs polling on a single worker"""
-    context = zmq.Context.instance()
+    context = SerializingContext()
     detector = ObjectDetection(context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier)
     try:
         while True:

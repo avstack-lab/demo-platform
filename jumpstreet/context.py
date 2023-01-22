@@ -81,6 +81,14 @@ class SerializingSocket(zmq.Socket):
         array = np.frombuffer(array, dtype=metadata['dtype'])
         return (client, metadata, array)
 
+    def recv_array_multipart(self, flags=0, copy=True, track=False):
+        """Same as envelope but without the empty frame i.e. not on router"""
+        client, metadata, array = self.recv_multipart(
+            flags=flags, copy=copy, track=track)
+        metadata = json.loads(metadata.decode('utf-8'))
+        array = np.frombuffer(array, dtype=metadata['dtype'])
+        return (client, metadata, array)
+
     def recv_array(self, flags=0, copy=True, track=False):
         """Receives a numpy array with metadata and text message.
         Receives a numpy array with the metadata necessary
