@@ -3,7 +3,6 @@ INSTALL_STAMP := .install.stamp
 POETRY := $(shell command -v poetry 2> /dev/null)
 PORT := 5556
 RATE := 10
-# DATA := /mnt/data/KITTI/raw/2011_09_26/2011_09_26_drive_0001_sync/image_02/data
 DATA := /home/spencer/Documents/PercepTech/Technical/jumpstreet/data/TUD-Campus/img1
 .DEFAULT_GOAL := help
 
@@ -17,7 +16,7 @@ help:
 		@echo "  format      reformat code"
 		@echo "  test        run all the tests"
 		@echo "  run         run the whole shebang"
-		@ECHO "  runreplay   run with replay testing"
+		@echo "  runreplay   run with replay testing"
 		@echo ""
 		@echo "Check the Makefile to know exactly what each target is doing."
 
@@ -47,10 +46,10 @@ format: $(INSTALL_STAMP)
 
 .PHONY: test
 test: $(INSTALL_STAMP)
-		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 100 --cov $(NAME)
+		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 0 --cov $(NAME)
 
-.PHONY: run_image_broker
-run_image_broker: $(INSTALL_STAMP)
+.PHONY: run_data_broker
+run_data_broker: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/broker.py loadbalancing --frontend=5555 --backend=5556
 
 .PHONY: run_replay

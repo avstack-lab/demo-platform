@@ -3,6 +3,10 @@
 from __future__ import print_function
 import argparse
 import zmq
+import logging
+import numpy as np
+from jumpstreet.utils import init_some_end
+from jumpstreet.context import SerializingContext
 
 
 class LoadBalancingBroker():
@@ -14,16 +18,10 @@ class LoadBalancingBroker():
     
     def __init__(self, context, FRONTEND=5555, BACKEND=5556, verbose=False) -> None:
         self.verbose = verbose        
-        self.print(f'creating frontend router at port {FRONTEND}...', end='')
-        self.frontend = context.socket(zmq.ROUTER)
-        self.frontend.bind(f"tcp://*:{FRONTEND}")
-        print('done')
-        self.print(f'creating backend router at port {BACKEND}...', end='')
-        self.backend = context.socket(zmq.ROUTER)
-        self.backend.bind(f"tcp://*:{BACKEND}")
+        self.frontend = init_some_end(self, context, 'frontend', zmq.ROUTER, '*', FRONTEND, BIND=True)
+        self.backend = init_some_end(self, context, 'backend', zmq.ROUTER, '*', BACKEND, BIND=True)
         self.backend_ready=False
         self.workers = []
-        print('done')
         self.print(f'initializing poller...', end='')
         self.poller = zmq.Poller()
         self.poller.register(self.backend, zmq.POLLIN) 
@@ -54,20 +52,30 @@ class LoadBalancingBroker():
         # --- handle client requests on the frontend
         if self.frontend in sockets:
             # Get next client request, route to last-used worker
-            client, empty, request = self.frontend.recv_multipart()
-            if request.decode("ascii") == "READY":
+            client, empty, metadata, array = self.frontend.recv_array_multipart()
+            if metadata["msg"] == "READY":
                 # -- client discovery and acknowledgement
                 reply = b"OK"
                 self.frontend.send_multipart([client, b"", reply])
                 # self.poller.unregister(self.frontend)
-            else:
+            elif self.backend_ready and ("IMAGE" in metadata["msg"]):
                 # -- client requests
                 worker = self.workers.pop(0)
+                request = b"TBD"
                 self.backend.send_multipart([worker, b"", client, b"", request])
                 if not self.workers:
                     # Don't poll clients if no workers are available and set backend_ready flag to false
                     self.poller.unregister(self.frontend)
                     self.backend_ready = False
+
+    def _send_image_data(self, array, msg):
+        if array.flags['C_CONTIGUOUS']:
+            # if array is already contiguous in memory just send it
+            self.backend.send_array(array, msg, copy=False)
+        else:
+            # else make it contiguous before sending
+            array = np.ascontiguousarray(array)
+            self.backend.send_array(array, msg, copy=False)
 
     def close(self):
         self.frontend.close()
@@ -82,12 +90,15 @@ def init_broker(broker_type):
 
 
 def main(args):
-    context = zmq.Context.instance()
+    # context = zmq.Context.instance()
+    context = SerializingContext()
     broker = init_broker(args.broker)(context,
         FRONTEND=args.frontend, BACKEND=args.backend, verbose=args.verbose)
     try:
         while True:
             broker.poll()
+    except Exception as e:
+        logging.warning(e, exc_info=True)
     finally:
         broker.close()
 

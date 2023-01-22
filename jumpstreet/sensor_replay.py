@@ -3,35 +3,60 @@
 import argparse
 import logging
 import zmq
+import glob
+import os
+import numpy as np
 import multiprocessing
 import random
+from cv2 import imread
 from time import sleep
-from jumpstreet import client as jclient
+from jumpstreet.utils import init_some_end, BaseClass
+from jumpstreet.context import SerializingContext
 
 
-class SensorDataReplayer():
+img_exts = ['.jpg', '.jpeg', '.png', '.tiff']
+
+
+class SensorDataReplayer(BaseClass):
     """Replays sensor data from a folder"""
+    NAME = 'data-replayer'
 
     def __init__(self, context, HOST, PORT, identifier, send_dir) -> None:
-        self.identifier = identifier
-        self.interface = jclient.ClientWithRouter(context, HOST=HOST, PORT=PORT, identifier=identifier)
+        super().__init__(self.NAME, identifier)
+        self.backend = init_some_end(cls=self, context=context, end_type='backend',
+            pattern=zmq.REQ, HOST=HOST, PORT=PORT, BIND=False)
+        self.images = sorted([img for ext in img_exts for 
+            img in glob.glob(os.path.join(send_dir, '*' + ext))])
+        self.i_next_img = 0
+        self._send_image_data(np.array([]), 'READY')
+        ack = self.backend.recv_multipart()
+        assert ack[0] == b"OK"
+        self.print('confirmed data broker ready', end='\n')
 
     def send(self):
         # -- load data
-        data = "test-{}".format(random.randint(0, 200)).encode("ascii")
+        data = imread(self.images[self.i_next_img])
 
         # -- send data
-        self.interface.print('sending data...', end='')
-        self.interface.socket.send(data)
-        print('done')
-        
-        # -- acknowledge
-        self.interface.print('waiting for acknowledge...', end='')
-        self.interface.receive_acknowledge()
+        self.print('sending data...', end='')
+        self._send_image_data(data, f'IMAGE_{self.i_next_img:04d}')
+        self.i_next_img = (self.i_next_img + 1) % len(self.images)
         print('done')
 
-    def close(self):
-        self.interface.close()
+        # -- acknowledge
+        self.print('waiting for acknowledge...', end='')
+        ack = self.backend.recv_multipart()
+        assert ack[0] == b"OK"
+        print('done')
+
+    def _send_image_data(self, array, msg):
+        if array.flags['C_CONTIGUOUS']:
+            # if array is already contiguous in memory just send it
+            self.backend.send_array(array, msg, copy=False)
+        else:
+            # else make it contiguous before sending
+            array = np.ascontiguousarray(array)
+            self.backend.send_array(array, msg, copy=False)
 
 
 def start_client(task, *args):
@@ -43,7 +68,8 @@ def start_client(task, *args):
 
 def main_single(HOST, PORT, identifier, send_rate, send_dir):
     """Runs sending on a single client"""
-    context = zmq.Context.instance()
+    # context = zmq.Context.instance()
+    context = SerializingContext()
     replayer = SensorDataReplayer(context, HOST=HOST, PORT=PORT,
         identifier=identifier, send_dir=send_dir)
     send_dt = 1./send_rate
@@ -52,7 +78,7 @@ def main_single(HOST, PORT, identifier, send_rate, send_dir):
             replayer.send()
             sleep(send_dt)
     except Exception as e:
-        logging.warning(e)
+        logging.warning(e, exc_info=True)
     finally:
         replayer.close()
 

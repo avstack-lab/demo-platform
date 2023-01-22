@@ -32,7 +32,7 @@ class ObjectDetection(BaseClass):
         # -- process data
         detections = b"no detections yet"
         self.n_imgs += 1
-        print(f'received image - total is {self.n_imgs}', end='\n')
+        self.print(f'received image - total is {self.n_imgs}', end='\n')
         # -- send data at backend
         self.backend.send_multipart([b"detections", detections])
         # -- say we're ready for more
