@@ -52,7 +52,7 @@ class LoadBalancingBroker():
         # --- handle client requests on the frontend
         if self.frontend in sockets:
             # Get next client request, route to last-used worker
-            client, empty, metadata, array = self.frontend.recv_array_multipart()
+            client, metadata, array = self.frontend.recv_array_envelope()
             if metadata["msg"] == "READY":
                 # -- client discovery and acknowledgement
                 reply = b"OK"
@@ -61,21 +61,13 @@ class LoadBalancingBroker():
             elif self.backend_ready and ("IMAGE" in metadata["msg"]):
                 # -- client requests
                 worker = self.workers.pop(0)
-                request = b"TBD"
-                self.backend.send_multipart([worker, b"", client, b"", request])
+                self.backend.send_array_envelope(worker, client, array, metadata["msg"])
                 if not self.workers:
                     # Don't poll clients if no workers are available and set backend_ready flag to false
                     self.poller.unregister(self.frontend)
                     self.backend_ready = False
-
-    def _send_image_data(self, array, msg):
-        if array.flags['C_CONTIGUOUS']:
-            # if array is already contiguous in memory just send it
-            self.backend.send_array(array, msg, copy=False)
-        else:
-            # else make it contiguous before sending
-            array = np.ascontiguousarray(array)
-            self.backend.send_array(array, msg, copy=False)
+            else:
+                raise NotImplemented(metadata["msg"])
 
     def close(self):
         self.frontend.close()

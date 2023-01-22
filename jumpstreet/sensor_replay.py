@@ -45,8 +45,8 @@ class SensorDataReplayer(BaseClass):
 
         # -- acknowledge
         self.print('waiting for acknowledge...', end='')
-        ack = self.backend.recv_multipart()
-        assert ack[0] == b"OK"
+        ack = self.backend.recv()
+        assert ack == b"OK"
         print('done')
 
     def _send_image_data(self, array, msg):
