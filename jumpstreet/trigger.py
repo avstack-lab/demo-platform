@@ -12,7 +12,7 @@ class Trigger(BaseClass):
         raise NotImplementedError
 
 
-class AlwaysTrigger(BaseClass):
+class AlwaysTrigger(Trigger):
     def __init__(self, identifier) -> None:
         super().__init__(identifier)
 

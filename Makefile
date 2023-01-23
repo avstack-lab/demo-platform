@@ -73,5 +73,5 @@ run_tracking: $(INSTALL_STAMP)
 
 .PHONY: run_frontend
 run_frontend: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/frontend/dummy.py \
+		$(POETRY) run python jumpstreet/frontend/pvc.py \
 			--host localhost --port_tracks 5554 --port_images=5552

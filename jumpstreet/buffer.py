@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 from jumpstreet.utils import BaseClass
-from avstack.datastructs import PriorityQueue
+# from avstack.datastructs import PriorityQueue
 
 
 @dataclass(order=True)

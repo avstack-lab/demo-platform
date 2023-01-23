@@ -9,71 +9,81 @@ import argparse
 import logging
 import zmq
 import jumpstreet
+import sys
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QObject, pyqtSignal
+import numpy as np
 
 
-def main(args):
-    context = jumpstreet.context.SerializingContext()
+class MainLoop(QObject):
+    update = pyqtSignal(object)
 
-    # -- set up frontend data receivers
-    frontend_tracks = jumpstreet.utils.init_some_end(
-        cls=None,
-        context=context,
-        end_type="frontend",
-        pattern=zmq.SUB,
-        HOST=args.host,
-        PORT=args.port_tracks,
-        BIND=False,
-        subopts="tracks",
-    )
-    frontend_images = jumpstreet.utils.init_some_end(
-        cls=None,
-        context=context,
-        end_type="frontend",
-        pattern=zmq.SUB,
-        HOST=args.host,
-        PORT=args.port_images,
-        BIND=False,
-        subopts="images",
-    )
+    def __init__(self, context, HOST, PORT_TRACKS, PORT_IMAGES):
+        super().__init__()
+        self.quit_flag = False
 
-    # -- set up polling
-    poller = zmq.Poller()
-    poller.register(frontend_tracks, zmq.POLLIN)
-    poller.register(frontend_images, zmq.POLLIN)
+        # -- set up frontend data receivers
+        self.frontend_tracks = jumpstreet.utils.init_some_end(
+            cls=None,
+            context=context,
+            end_type="frontend",
+            pattern=zmq.SUB,
+            HOST=HOST,
+            PORT=PORT_TRACKS,
+            BIND=False,
+            subopts=b"",
+        )
+        self.frontend_images = jumpstreet.utils.init_some_end(
+            cls=None,
+            context=context,
+            end_type="frontend",
+            pattern=zmq.SUB,
+            HOST=HOST,
+            PORT=PORT_IMAGES,
+            BIND=False,
+            subopts=b"",
+        )
 
-    # -- set up processes
-    trigger = jumpstreet.trigger.AlwaysTrigger(identifier=0)
-    buffer = jumpstreet.buffer.VideoBuffer(identifier=0)
-    display = jumpstreet.display.ConfirmationDisplay(identifier=0)
-    display.start()
+        # -- set up polling
+        self.poller = zmq.Poller()
+        self.poller.register(self.frontend_tracks, zmq.POLLIN)
+        self.poller.register(self.frontend_images, zmq.POLLIN)
 
-    # -- run loops
-    try:
-        while True:
-            socks = dict(poller.poll())
-            # -- get video buffer to send to display
-            if frontend_images in socks:
-                address, metadata, image = frontend_images.recv_array_multipart(
-                    copy=False
-                )
-                buffer.store(
-                    t=metadata["timestamp"], cam_id=metadata["camera_ID"], image=image
-                )
+        # -- set up processes
+        self.trigger = jumpstreet.trigger.AlwaysTrigger(identifier=0)
+        # self.buffer = jumpstreet.buffer.VideoBuffer(identifier=0)
+        
+    def run(self):
+        try:
+            while True:
+                socks = dict(self.poller.poll())
 
-            # -- get trigger from track data
-            if frontend_tracks in socks:
-                tracks = frontend_tracks.recv()
-                t_start, t_end = trigger(tracks)
-                images_out = buffer.trigger(t_start, t_end)
-                if images_out is not None:
-                    display(images_out)
+                # -- get video buffer to send to display
+                if self.frontend_images in socks:
+                    msg, image = self.frontend_images.recv_array(
+                        copy=False
+                    )
+                    t = float(msg.split('_')[1])
+                    cam_id = int(msg.split('_')[3])
+                    # self.buffer.store(
+                    #     t=t, cam_id=cam_id, image=image
+                    # )
+                    print('sending image to display')
+                    self.update.emit([image])
 
-    except Exception as e:
-        logging.warning(e, exc_info=True)
+                # # -- get trigger from track data
+                # if self.frontend_tracks in socks:
+                #     tracks = self.frontend_tracks.recv()
+                #     t_start, t_end = self.trigger(tracks)
+                #     images_out = self.buffer.trigger(t_start, t_end)
+                #     self.image_buffer.emit(images_out)
 
-    finally:
-        frontend_tracks.close()
-        frontend_images.close()
+        except Exception as e:
+            logging.warning(e, exc_info=True)
+
+        finally:
+            self.frontend_tracks.close()
+            self.frontend_images.close()
 
 
 if __name__ == "__main__":
@@ -83,4 +93,12 @@ if __name__ == "__main__":
     parser.add_argument("--port_images", type=int, default=5552)
 
     args = parser.parse_args()
-    main(args)
+
+    context = jumpstreet.context.SerializingContext()
+    main_loop = MainLoop(context=context, HOST=args.host, PORT_TRACKS=args.port_tracks,
+        PORT_IMAGES=args.port_images)
+
+    app = QApplication(sys.argv)
+    display = jumpstreet.display.StreamThrough(main_loop=main_loop, identifier=0)
+    display.start()
+    sys.exit(app.exec())

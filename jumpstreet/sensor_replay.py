@@ -24,7 +24,7 @@ class SensorDataReplayer(BaseClass):
 
     NAME = "data-replayer"
 
-    def __init__(self, context, HOST, PORT, identifier, send_dir, pattern=zmq.PUB) -> None:
+    def __init__(self, context, HOST, PORT, identifier, send_dir, pattern=zmq.PUB, rate=10) -> None:
         super().__init__(self.NAME, identifier)
         self.pattern = pattern
         self.backend = init_some_end(
@@ -44,6 +44,7 @@ class SensorDataReplayer(BaseClass):
             ]
         )
         self.i_next_img = 0
+        self.rate = rate
         if pattern == zmq.REQ:
             self._send_image_data(np.array([]), "READY")
             ack = self.backend.recv_multipart()
@@ -56,7 +57,7 @@ class SensorDataReplayer(BaseClass):
 
         # -- send data
         self.print("sending data...", end="")
-        self._send_image_data(data, f"IMAGE_{self.i_next_img:04d}")
+        self._send_image_data(data, f"TIME_{self.i_next_img/self.rate:.2f}_CAM_{self.identifier:02d}")
         self.i_next_img = (self.i_next_img + 1) % len(self.images)
         print("done")
 
@@ -88,7 +89,7 @@ def main_single(HOST, PORT, identifier, send_rate, send_dir):
     """Runs sending on a single client"""
     context = SerializingContext()
     replayer = SensorDataReplayer(
-        context, HOST=HOST, PORT=PORT, identifier=identifier, send_dir=send_dir
+        context, HOST=HOST, PORT=PORT, identifier=identifier, send_dir=send_dir, rate=send_rate
     )
     send_dt = 1.0 / send_rate
     try:
