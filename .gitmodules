@@ -1,3 +1,6 @@
 [submodule "third_party/imagezmq"]
 	path = third_party/imagezmq
 	url = git@github.com:percep-tech/imagezmq.git
+[submodule "third_party/lib-avstack-core"]
+	path = third_party/lib-avstack-core
+	url = git@github.com:avstack-lab/lib-avstack-core

@@ -48,21 +48,30 @@ format: $(INSTALL_STAMP)
 test: $(INSTALL_STAMP)
 		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 0 --cov $(NAME)
 
-.PHONY: run_data_broker
-run_data_broker: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/broker.py loadbalancing --frontend=5555 --backend=5556
-
 .PHONY: run_replay
 run_replay: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/sensor_replay.py -n 1 --host localhost --port 5555
+		$(POETRY) run python jumpstreet/sensor_replay.py -n 1 \
+		 	--host 127.0.0.1 --port 5550
+
+.PHONY: run_data_broker
+run_data_broker: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/broker.py \
+			lb_with_xsub_extra_xpub --frontend 5550 \
+			--backend 5551 --backend_other 5552
 
 .PHONY: run_detection
 run_detection: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/object_detection.py -n 3 \
-			--in_host localhost --in_port 5556 --out_host localhost --out_port 5557
+			--in_host localhost --in_port 5551 \
+			--out_host localhost --out_port 5553
 
 .PHONY: run_tracking
 run_tracking: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/object_tracking.py \
-			--in_host localhost --in_port 5557 --in_bind \
-			--out_host localhost --out_port 5558 --out_bind
+			--in_host localhost --in_port 5553 --in_bind \
+			--out_host localhost --out_port 5554 --out_bind
+
+.PHONY: run_frontend
+run_frontend: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/frontend/dummy.py \
+			--host localhost --port_tracks 5554 --port_images=5552

@@ -1,8 +1,8 @@
-import zmq
 import numpy as np
+import zmq
 
 
-class BaseClass():
+class BaseClass:
     def __init__(self, name, identifier) -> None:
         self.name = name
         self.identifier = identifier
@@ -31,32 +31,34 @@ class BaseClass():
         if self.backend is not None:
             self.backend.close()
 
-    def print(self, msg, end='', flush=True):
+    def print(self, msg, end="", flush=True):
         try:
             name = self.NAME
         except AttributeError as e:
             name = self.name
-        print(f'::{name}-{self.identifier}::{msg}', end=end, flush=True)
+        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
 
 
-def init_some_end(cls, context, end_type, pattern, HOST, PORT, BIND=False, subopts=None):
+def init_some_end(
+    cls, context, end_type, pattern, HOST, PORT, BIND=False, subopts=None
+):
     socket = context.socket(pattern)
     if BIND:
-        pstring = f'creating {end_type} bind with {PORT}...'
+        pstring = f"creating {end_type} bind with {PORT}..."
         if cls is not None:
-            cls.print(pstring, end='')
+            cls.print(pstring, end="")
         else:
-            print(pstring, end='')
+            print(pstring, end="")
         socket.bind(f"tcp://*:{PORT}")
-        print('done')
+        print("done")
     else:
-        pstring = f'creating {end_type} connection with {HOST}:{PORT}...'
+        pstring = f"creating {end_type} connection with {HOST}:{PORT}..."
         if cls is not None:
-            cls.print(pstring, end='')
+            cls.print(pstring, end="")
         else:
-            print(pstring)
+            print(pstring, end="")
         socket.connect(f"tcp://{HOST}:{PORT}")
-        print('done')
+        print("done")
     if pattern == zmq.SUB:
         assert subopts is not None
         socket.setsockopt(zmq.SUBSCRIBE, subopts)
@@ -72,7 +74,7 @@ def send_array_reqrep(zmq_socket, msg, array):
         A text reply from hub.
     """
 
-    if array.flags['C_CONTIGUOUS']:
+    if array.flags["C_CONTIGUOUS"]:
         # if array is already contiguous in memory just send it
         zmq_socket.send_array(array, msg, copy=False)
     else:
@@ -94,7 +96,7 @@ def send_array_pubsub(zmq_socket, msg, array):
         Nothing; there is no reply from hub computer in PUB/SUB mode
     """
 
-    if array.flags['C_CONTIGUOUS']:
+    if array.flags["C_CONTIGUOUS"]:
         # if array is already contiguous in memory just send it
         zmq_socket.send_array(array, msg, copy=False)
     else:
