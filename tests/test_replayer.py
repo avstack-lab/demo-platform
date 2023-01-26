@@ -1,5 +1,5 @@
 from jumpstreet.context import SerializingContext
-from jumpstreet.sensor_replay import SensorDataReplayer
+from jumpstreet.replay import SensorDataReplayer
 
 
 test_img_dir = "data/TUD-Campus/img1"

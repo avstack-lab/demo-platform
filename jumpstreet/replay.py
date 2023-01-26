@@ -5,8 +5,7 @@ import glob
 import logging
 import multiprocessing
 import os
-import random
-from time import sleep
+import time
 
 import numpy as np
 import zmq
@@ -18,6 +17,40 @@ from jumpstreet.utils import BaseClass, init_some_end
 
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
 
+
+class NearRealTimeImageLoader():
+    """Loads images at nearly the correct rate
+    
+    It is expected that this will perform the necessary sleep
+    process to enable near-correct-time sending
+    """
+    def __init__(self, image_paths, rate) -> None:
+        self.image_paths = image_paths
+        self.rate = rate
+        self.interval = 1./rate
+        self.i_next_img = 0
+        self.counter = 0
+        self.last_load_time = 0
+        self.t0 = None
+        self.dt_last_load = 0
+        self.next_target_send = None
+        
+    def load_next(self):
+        t_pre_1 = time.time()
+        if self.next_target_send is not None:
+            dt_wait = self.next_target_send - t_pre_1 - self.dt_last_load
+            if dt_wait > 0:
+                time.sleep(dt_wait)
+        t_pre_2 = time.time()
+        data = imread(self.image_paths[self.i_next_img])
+        self.counter += 1
+        self.i_next_img = (self.i_next_img + 1) % len(self.image_paths)
+        t_post = time.time()
+        if self.t0 is None:
+            self.t0 = t_post
+        self.dt_last_load = t_post - t_pre_2
+        self.next_target_send = self.t0 + self.counter * self.interval
+        return data
 
 class SensorDataReplayer(BaseClass):
     """Replays sensor data from a folder"""
@@ -36,15 +69,17 @@ class SensorDataReplayer(BaseClass):
             PORT=PORT,
             BIND=False,
         )
-        self.images = sorted(
+        images = sorted(
             [
                 img
                 for ext in img_exts
                 for img in glob.glob(os.path.join(send_dir, "*" + ext))
             ]
         )
-        self.i_next_img = 0
+        if len(images) == 0:
+            raise RuntimeError(f'No images were found in {send_dir}!')
         self.rate = rate
+        self.image_loader = NearRealTimeImageLoader(image_paths=images, rate=rate)
         if pattern == zmq.REQ:
             self._send_image_data(np.array([]), "READY")
             ack = self.backend.recv_multipart()
@@ -53,12 +88,11 @@ class SensorDataReplayer(BaseClass):
 
     def send(self):
         # -- load data
-        data = imread(self.images[self.i_next_img])
+        data = self.image_loader.load_next()
 
         # -- send data
         self.print("sending data...", end="")
-        self._send_image_data(data, f"TIME_{self.i_next_img/self.rate:.2f}_CAM_{self.identifier:02d}")
-        self.i_next_img = (self.i_next_img + 1) % len(self.images)
+        self._send_image_data(data, f"TIME_{self.image_loader.i_next_img/self.rate:.2f}_CAM_{self.identifier:02d}")
         print("done")
 
         # -- acknowledge
@@ -91,11 +125,9 @@ def main_single(HOST, PORT, identifier, send_rate, send_dir):
     replayer = SensorDataReplayer(
         context, HOST=HOST, PORT=PORT, identifier=identifier, send_dir=send_dir, rate=send_rate
     )
-    send_dt = 1.0 / send_rate
     try:
         while True:
             replayer.send()
-            sleep(send_dt)
     except Exception as e:
         logging.warning(e, exc_info=True)
     finally:
@@ -109,7 +141,7 @@ def main(args):
             main_single, args.host, args.port, i, args.send_rate, args.send_dir
         )
     while True:
-        sleep(1)
+        time.sleep(1)
 
 
 if __name__ == "__main__":
@@ -129,7 +161,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--send_dir",
         type=str,
-        default="./data/TUD-Campus/img1",
+        default="./data/ADL-Rundle-6/img1",
         help="Directory for data replay",
     )
 

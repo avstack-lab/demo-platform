@@ -18,9 +18,7 @@ tqdm = "^4"
 pyzmq = "^25.0"
 opencv-python = ">=4.3, <4.7"
 jsonpickle = "^3.0"
-# lib-avstack-core = {path="third_party/lib-avstack-core", develop=true}
-# pyqt5-sip = "^12.11.0"
-# pyqt5-qt5 = "^5.15.2"
+lib-avstack-core = {path="third_party/lib-avstack-core", develop=true}
 PyQt5 = "=5.15.2"
 
 [tool.poetry.group.test.dependencies]
