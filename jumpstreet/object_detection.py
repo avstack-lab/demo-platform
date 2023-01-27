@@ -7,16 +7,18 @@ from time import sleep
 
 import zmq
 
+from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end
+
 
 
 class ObjectDetection(BaseClass):
     NAME = "object-detector"
 
     def __init__(
-        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier
-    ) -> None:
+        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
+            dataset='coco-person', model='fasterrcnn') -> None:
         """Set up front and back ends
 
         Front end: req
@@ -31,6 +33,10 @@ class ObjectDetection(BaseClass):
         )
         self.n_imgs = 0
 
+        # -- set up perception model
+        self.model = MMDetObjectDetector2D(dataset=dataset, model=model)
+        self.print('initialized perception model!', end="\n")
+
         # -- ready to go (need this!)
         self.frontend.send(b"READY")
         self.print(f"ready to start", end="\n")
@@ -43,7 +49,9 @@ class ObjectDetection(BaseClass):
         # -- get data from frontend
         address, metadata, array = self.frontend.recv_array_multipart(copy=False)
         # -- process data
-        detections = b"no detections yet"
+        detections = self.model(array, identifier=metadata["msg"])
+
+        raise NotImplementedError("cannot send detections yet...need to encode!!")
         self.n_imgs += 1
         self.print(f"received image - total is {self.n_imgs}", end="\n")
         # -- send data at backend
