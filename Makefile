@@ -73,5 +73,5 @@ tracking_worker: $(INSTALL_STAMP)
 
 .PHONY: frontend
 frontend: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/frontend/pvc.py \
+		$(POETRY) run python jumpstreet/frontend/simple.py \
 			--host localhost --port_tracks 5554 --port_images=5552

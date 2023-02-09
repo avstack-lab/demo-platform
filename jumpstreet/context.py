@@ -88,7 +88,7 @@ class SerializingSocket(zmq.Socket):
         client, metadata, array = self.recv_multipart(
             flags=flags, copy=copy, track=track
         )
-        metadata = json.loads(metadata.decode("utf-8"))
+        metadata = json.loads(metadata)  #.decode("utf-8")
         array = np.frombuffer(array, dtype=metadata["dtype"])
         return (client, metadata, array)
 
