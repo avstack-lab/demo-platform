@@ -11,7 +11,9 @@ To test networking without real sensors, you can download image data to playback
 ```
 ./download_tracking.sh
 ```
-from inside the `data` folder. Ensure the symbolic links attached appropriately to the location that the data was downloaded.
+from inside the `data` folder. **NOTE:** if you system does not allow you to make a folder at /data/tracking, then pass an argument to the call above with your custom download folder, e.g., `./download_tracking.sh ./data/tracking` aka locally.
+
+Ensure the symbolic links attached appropriately to the location that the data was downloaded.
 
 ### Installing Dependencies
 
