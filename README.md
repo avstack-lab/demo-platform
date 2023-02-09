@@ -1,7 +1,6 @@
-# Jump Street
+# ICCPS Demo Platform
 
 Created by: Spencer Hallyburton
-
 
 
 ## Installation
@@ -32,7 +31,6 @@ If all goes well, you will have a working python environment!
 
 ### Running Scripts
 
-#### Data Broker
 You will need some number of terminal windows, terminal tabs, or terminal subwindows (recommended, using [tmux][tmux])
 
 In terminal 1, to start the data broker, run:
@@ -56,6 +54,17 @@ make replay
 ```
 
 You should see at the least image data being played back over the front-end display. Detection may not be set up yet to actually produce anything meaningful.
+
+#### Bugs 
+
+##### Display Must Be Running
+
+Currently, there is a bug where the data broker will not pass on data to the detection workers if the frontend display is not running. I think this is because the XSUB in the data broker is connected to an XPUB in the data broker which is connected to a SUB in the display process. If there is no display process, then XPUB will not need to send anything meaning XSUB *thinks* it does not need to receive anything when in reality it still needs to receive something to send to the ROUTER. It's possible that changing the XSUB to a regular SUB and changing the XPUB to a regular PUB is the better solution. This needs to be fixed so the detection can work even if display is not working.
+
+##### Always-copy
+
+When data is passed over a socket, it currently must be copied in order to retain the byte-stream structure. Ideally, we would NOT copy the data if we didn't have to, however, this would return a ZMQ.Frame object which is not currently handled in the code. This is a low-priority issue.
+
 
 ### Display (TODO)
 

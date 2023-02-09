@@ -124,12 +124,13 @@ class LoadBalancingBrokerXSub(BaseClass):
             #  -- Route data to last-used worker, if ready
             if self.backend_ready:
                 worker = self.workers.pop(0)
-                client = b"not compatible with xpub frontend"
+                client = b"N/A"
                 self.backend.send_array_envelope(worker, client, msg, array, copy=False)
                 if not self.workers:
                     self.backend_ready = False
-                else:
-                    raise NotImplemented(msg)
+                # else:
+                #     print(worker, msg)
+                #     raise RuntimeError("No worker available")
 
             # -- handle secondary xpub
             self.backend_xpub.send_array(array, msg=msg, copy=False)
