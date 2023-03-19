@@ -4,3 +4,6 @@
 [submodule "third_party/lib-avstack-core"]
 	path = third_party/lib-avstack-core
 	url = git@github.com:avstack-lab/lib-avstack-core
+[submodule "third_party/raspberry-as-gige-camera"]
+	path = third_party/raspberry-as-gige-camera
+	url = https://github.com/avstack-lab/raspberry-as-gige-camera.git
