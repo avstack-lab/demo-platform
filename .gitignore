@@ -1,4 +1,10 @@
 .install.stamp
+*.png
+*.jpg
+*.pdf
+data/MOT15
+data/tracking
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,26 +1,26 @@
 {
-    "camera_1": {
-      "name": "camera-BFS-1",
-      "type": "sensor",
-      "ip": "127.0.0.1",
-      "serial": "123456789",
-      "port": "5556",
-      "status_running": false,
-      "data_info": {
-        "fps": 20,
-        "frame_size": 1024
-      }
-    },
-    "camera_2": {
-      "name": "camera-BFS-2",
-      "type": "sensor",
-      "ip": "127.0.0.2",
-      "serial": "123456789",
-      "port": "5557",
-      "status_running": false,
-      "fame_info": {
-        "frame_rate_hz": 20,
-        "frame_size_bytes": 1024
-      }
+  "camera_1": {
+    "name": "camera-BFS-1",
+    "type": "sensor",
+    "ip": "127.0.0.1",
+    "serial": "123456789",
+    "port": "5556",
+    "status_running": false,
+    "data_info": {
+      "fps": 20,
+      "frame_size": 1024
+    }
+  },
+  "camera_2": {
+    "name": "camera-BFS-2",
+    "type": "sensor",
+    "ip": "127.0.0.2",
+    "serial": "123456789",
+    "port": "5557",
+    "status_running": false,
+    "fame_info": {
+      "frame_rate_hz": 20,
+      "frame_size_bytes": 1024
     }
   }
+}
