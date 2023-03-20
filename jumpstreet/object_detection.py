@@ -78,7 +78,7 @@ class ObjectDetection(BaseClass):
 
         # -- process data
         if self.model is not None:
-            detections = self.model(image, identifier=metadata["msg"])
+            detections = self.model(image, identifier=metadata['msg']['identifier'])
             detections = format_data_container_as_string(detections).encode()
         else:
             detections = b'No detections yet'
@@ -152,7 +152,7 @@ if __name__ == "__main__":
         "--in_host", default="localhost", type=str, help="Hostname to connect to"
     )
     parser.add_argument(
-        "--in_port", default=5556, type=int, help="Port to connect to server/broker"
+        "--in_port", default=5551, type=int, help="Port to connect to server/broker"
     )
     parser.add_argument(
         "--out_host",
@@ -161,7 +161,7 @@ if __name__ == "__main__":
         help="Hostname to connect output to",
     )
     parser.add_argument(
-        "--out_port", default=5557, type=int, help="Port to connect output data to"
+        "--out_port", default=5553, type=int, help="Port to connect output data to"
     )
     parser.add_argument(
         "--out_bind",

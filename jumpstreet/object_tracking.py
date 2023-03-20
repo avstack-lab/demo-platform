@@ -7,6 +7,8 @@ from time import sleep
 import zmq
 
 from jumpstreet.utils import BaseClass, init_some_end
+from avstack.modules.perception.detections import get_data_container_from_line
+from avstack.modules.tracking.tracker2d import BasicBoxTracker2D
 
 
 class ObjectTracker(BaseClass):
@@ -35,16 +37,19 @@ class ObjectTracker(BaseClass):
             self, context, "backend", zmq.PUB, OUT_HOST, OUT_PORT, BIND=OUT_BIND
         )
         self.n_dets = 0
+        self.model = BasicBoxTracker2D(framerate=30)
 
     def poll(self):
         # -- get data from frontend
         key, data = self.frontend.recv_multipart()
+        detections = get_data_container_from_line(data.decode())
+
         # -- process data
-        tracks = b"no tracks yet"
-        self.n_dets += 1
-        self.print(f"received detections - total is {self.n_dets}", end="\n")
+        tracks = self.model(detections, frame=detections.frame, identifier="tracker-1")
+        self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
+
         # -- send data at backend
-        self.backend.send_multipart([b"tracks", tracks])
+        # self.backend.send_multipart([b"tracks", tracks)
 
 
 def main(args):
@@ -75,7 +80,7 @@ if __name__ == "__main__":
         "--in_host", default="localhost", type=str, help="Hostname to connect to"
     )
     parser.add_argument(
-        "--in_port", default=5557, type=int, help="Port to connect to server/broker"
+        "--in_port", default=5553, type=int, help="Port to connect to server/broker"
     )
     parser.add_argument(
         "--in_bind",
@@ -89,7 +94,7 @@ if __name__ == "__main__":
         help="Hostname to connect output to",
     )
     parser.add_argument(
-        "--out_port", default=5558, type=int, help="Port to connect output data to"
+        "--out_port", default=5554, type=int, help="Port to connect output data to"
     )
     parser.add_argument(
         "--out_bind",
