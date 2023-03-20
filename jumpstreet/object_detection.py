@@ -5,12 +5,16 @@ import logging
 import multiprocessing
 from time import sleep
 
+import numpy as np
 import zmq
 
-# from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end
 
+from avstack.sensors import ImageData
+from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
+from avstack.calibration import CameraCalibration
+from avstack.geometry import NominalOriginStandard
 
 
 class ObjectDetection(BaseClass):
@@ -34,9 +38,15 @@ class ObjectDetection(BaseClass):
         self.n_imgs = 0
 
         # -- set up perception model
-        logging.warning('Have not implemented true object detection')
-        # self.model = MMDetObjectDetector2D(dataset=dataset, model=model)
-        self.model = None
+        if model == 'fasterrcnn':
+            # defer import until here
+
+            self.model = MMDetObjectDetector2D(dataset=dataset, model=model)
+        elif model in ["none", None]:
+            logging.warning('Not running true object detection')
+            self.model = None
+        else:
+            raise NotImplementedError(model)
         self.print('initialized perception model!', end="\n")
 
         # -- ready to go (need this!)
@@ -50,9 +60,24 @@ class ObjectDetection(BaseClass):
         """
         # -- get data from frontend
         address, metadata, array = self.frontend.recv_array_multipart(copy=True)
+        timestamp = metadata['msg']['timestamp']
+        frame = metadata['msg']['frame']
+        identifier = metadata['msg']['identifier']
+        a, b, g, u, v = metadata['msg']['intrinsics']
+        P = np.array([[a, g, u, 0],
+                      [0, b, v, 0],
+                      [0, 0, 1, 0]])
+        calib = CameraCalibration(NominalOriginStandard, P, metadata['shape'])
+        image = ImageData(timestamp=timestamp,
+                          frame=frame,
+                          source_ID=identifier,
+                          source_name='camera',
+                          data=np.reshape(array, metadata['shape']),
+                          calibration=calib)
+
         # -- process data
         if self.model is not None:
-            detections = self.model(array, identifier=metadata["msg"])
+            detections = self.model(image, identifier=metadata["msg"])
             raise NotImplementedError("cannot send detections yet...need to encode!!")
         else:
             detections = b'No detections yet'
@@ -72,11 +97,12 @@ def start_worker(task, *args):
     return process
 
 
-def main_single(IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier):
+def main_single(IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, model):
     """Runs polling on a single worker"""
     context = SerializingContext()
     detector = ObjectDetection(
-        context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier
+        context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
+        model=model
     )
     try:
         while True:
@@ -99,6 +125,7 @@ def main(args):
             args.out_port,
             args.out_bind,
             i,
+            args.model
         )
         procs.append(proc)
 
@@ -139,6 +166,12 @@ if __name__ == "__main__":
         "--out_bind",
         action="store_true",
         help="Whether or not the output connection binds here",
+    )
+    parser.add_argument(
+        "--model",
+        choices=["none", "fasterrcnn"],
+        default="none",
+        help="Perception model name to run"
     )
 
     args = parser.parse_args()

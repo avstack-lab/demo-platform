@@ -52,6 +52,7 @@ class NearRealTimeImageLoader():
         self.next_target_send = self.t0 + self.counter * self.interval
         return data
 
+
 class SensorDataReplayer(BaseClass):
     """Replays sensor data from a folder"""
 
@@ -89,10 +90,19 @@ class SensorDataReplayer(BaseClass):
     def send(self):
         # -- load data
         data = self.image_loader.load_next()
-
+        a = 700  # this is bogus...fix later...f*mx
+        b = 700  # this is bofus...fix later...f*my
+        u = data.shape[1]/2
+        v = data.shape[0]/2
+        g = 0
+        
         # -- send data
         self.print("sending data...", end="")
-        self._send_image_data(data, f"TIME_{self.image_loader.i_next_img/self.rate:.2f}_CAM_{self.identifier:02d}")
+        msg = {'timestamp':self.image_loader.i_next_img/self.rate,
+               'frame':self.image_loader.i_next_img,
+               'identifier':self.identifier,
+               'intrinsics':[a, b, g, u, v]}
+        self._send_image_data(data, msg)
         print("done")
 
         # -- acknowledge

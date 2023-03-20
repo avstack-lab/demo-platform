@@ -63,8 +63,9 @@ class MainLoop(QObject):
                     msg, image = self.frontend_images.recv_array(
                         copy=False
                     )
-                    t = float(msg.split('_')[1])
-                    cam_id = int(msg.split('_')[3])
+                    timestamp = msg['timestamp']
+                    frame = msg['frame']
+                    identifier = msg['identifier']
                     # self.buffer.store(
                     #     t=t, cam_id=cam_id, image=image
                     # )

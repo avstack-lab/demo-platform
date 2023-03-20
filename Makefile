@@ -63,7 +63,8 @@ data_broker: $(INSTALL_STAMP)
 detection_workers: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/object_detection.py -n 3 \
 			--in_host localhost --in_port 5551 \
-			--out_host localhost --out_port 5553
+			--out_host localhost --out_port 5553 \
+			--model none
 
 .PHONY: tracking_worker
 tracking_worker: $(INSTALL_STAMP)
