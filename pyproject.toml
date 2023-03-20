@@ -20,6 +20,7 @@ opencv-python = ">=4.3, <4.7"
 jsonpickle = "^3.0"
 lib-avstack-core = {path="third_party/lib-avstack-core", develop=true}
 PyQt5 = "=5.15.2"
+websocket-client = "^1.5.1"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7"
