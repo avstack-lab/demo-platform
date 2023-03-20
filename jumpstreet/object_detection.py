@@ -12,6 +12,7 @@ from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end
 
 from avstack.sensors import ImageData
+from avstack.modules.perception.detections import format_data_container_as_string
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from avstack.calibration import CameraCalibration
 from avstack.geometry import NominalOriginStandard
@@ -78,7 +79,7 @@ class ObjectDetection(BaseClass):
         # -- process data
         if self.model is not None:
             detections = self.model(image, identifier=metadata["msg"])
-            raise NotImplementedError("cannot send detections yet...need to encode!!")
+            detections = format_data_container_as_string(detections).encode()
         else:
             detections = b'No detections yet'
         self.n_imgs += 1
