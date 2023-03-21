@@ -12,12 +12,14 @@ import jumpstreet
 import sys
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QObject, pyqtSignal
+from avstack.modules.tracking.tracks import get_data_container_from_line
+from avstack.datastructs import DataContainer
 
 
 class MainLoop(QObject):
     update = pyqtSignal(object)
 
-    def __init__(self, context, HOST, PORT_TRACKS, PORT_IMAGES):
+    def __init__(self, context, HOST, PORT_TRACKS, PORT_IMAGES, dt_delay=0.10):
         super().__init__()
         self.quit_flag = False
 
@@ -50,15 +52,18 @@ class MainLoop(QObject):
 
         # -- set up processes
         self.trigger = jumpstreet.trigger.AlwaysTrigger(identifier=0)
-        # self.buffer = jumpstreet.buffer.VideoBuffer(identifier=0)
-        
+        self.video_buffer = jumpstreet.buffer.BasicDataBuffer(identifier=0, max_size=30)
+        self.track_buffer = jumpstreet.buffer.BasicDataBuffer(identifier=0, max_size=30)
+        self.muxer = jumpstreet.muxer.VideoTrackMuxer(
+            self.video_buffer, self.track_buffer, identifier=0, dt_delay=dt_delay)
+
     def run(self):
-        from avstack.modules.tracking.tracks import get_data_container_from_line
         try:
             while True:
                 socks = dict(self.poller.poll())
+                # TODO: have a REALLY short limit on the poller so we don't delay emitting frames
 
-                # -- get video buffer to send to display
+                # -- add video data to buffer
                 if self.frontend_images in socks:
                     msg, image = self.frontend_images.recv_array(
                         copy=False
@@ -66,20 +71,27 @@ class MainLoop(QObject):
                     timestamp = msg['timestamp']
                     frame = msg['frame']
                     identifier = msg['identifier']
-                    # self.buffer.store(
-                    #     t=t, cam_id=cam_id, image=image
-                    # )
-                    print('sending image to display')
-                    self.update.emit([image])
+                    image_data_container = DataContainer(frame=frame, timestamp=timestamp,
+                                                    data=image, source_identifier=identifier)
+                    self.video_buffer.push(image_data_container)
 
-                # -- get trigger from track data
+                # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
-                    tracks = get_data_container_from_line(data.decode())
-                    print(tracks)
-                    # t_start, t_end = self.trigger(tracks)
-                    # images_out = self.buffer.trigger(t_start, t_end)
-                    # self.image_buffer.emit(images_out)
+                    track_data_container = get_data_container_from_line(data.decode())
+                    self.track_buffer.push(track_data_container)
+
+                # -- run the muxer and load an image when we're ready
+                self.muxer.process()
+
+                # TODO: add some kind of rate monitor here to ensure steady sending
+                # with a fixed (or nearly fixed) delay factor to allow for processing
+                if self.muxer.empty():
+                    # TODO: add ability to handle multiple video streams...for now just assumes one
+                    image_out = self.muxer.pop(self.muxer.data_ids)
+                    if image_out is not None:
+                        print('sending image to display')
+                        self.update.emit([image_out])
 
         except Exception as e:
             logging.warning(e, exc_info=True)
