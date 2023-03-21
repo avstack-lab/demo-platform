@@ -6,12 +6,11 @@ class VideoTrackMuxer(BaseClass):
     """Muxes together images and tracks"""
     NAME = "muxer-video-track"
 
-    def __init__(self, video_buffer, track_buffer, identifier, dt_delay=0.10) -> None:
+    def __init__(self, video_buffer, track_buffer, identifier) -> None:
         super().__init__(self.NAME, identifier)
         self.video_buffer = video_buffer
         self.track_buffer = track_buffer
         self.muxed_buffer = BasicDataBuffer(identifier=0, max_size=100)
-        self.dt_delay = dt_delay
         self.ready = False
 
     def init(self):

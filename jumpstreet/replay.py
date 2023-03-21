@@ -98,8 +98,8 @@ class SensorDataReplayer(BaseClass):
         
         # -- send data
         self.print("sending data...", end="")
-        msg = {'timestamp':self.image_loader.i_next_img/self.rate,
-               'frame':self.image_loader.i_next_img,
+        msg = {'timestamp':self.image_loader.counter/self.rate,
+               'frame':self.image_loader.counter,
                'identifier':self.identifier,
                'intrinsics':[a, b, g, u, v]}
         self._send_image_data(data, msg)

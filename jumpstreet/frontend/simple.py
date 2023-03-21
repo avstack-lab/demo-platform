@@ -8,10 +8,11 @@ Runs the front-end which includes:
 import argparse
 import logging
 import zmq
-import jumpstreet
+import time
 import sys
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QObject, pyqtSignal
+import jumpstreet
 
 
 class MainLoop(QObject):
@@ -53,7 +54,10 @@ class MainLoop(QObject):
         self.video_buffer = jumpstreet.buffer.BasicDataBuffer(identifier=0, max_size=30)
         self.track_buffer = jumpstreet.buffer.BasicDataBuffer(identifier=0, max_size=30)
         self.muxer = jumpstreet.muxer.VideoTrackMuxer(
-            self.video_buffer, self.track_buffer, identifier=0, dt_delay=dt_delay)
+            self.video_buffer, self.track_buffer, identifier=0)
+        self.t_last_image = None
+        self.t_last_emit = None
+        self.dt_delay = dt_delay
 
     def run(self):
         from avstack.modules.tracking.tracks import get_data_container_from_line
@@ -77,28 +81,35 @@ class MainLoop(QObject):
                     image_data_container = DataContainer(frame=frame, timestamp=timestamp,
                                                     data=image, source_identifier=identifier)
                     self.video_buffer.push(image_data_container)
-                    print('Got image!')
 
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
                     track_data_container = get_data_container_from_line(data.decode(), identifier_override=0)
                     self.track_buffer.push(track_data_container)
-                    print('Got tracks!')
 
                 # -- run the muxer and load an image when we're ready
+                # TODO: put the processor on a separate thread???
                 self.muxer.process()
 
-                # TODO: add some kind of rate monitor here to ensure steady sending
-                # with a fixed (or nearly fixed) delay factor to allow for processing
+                # -- emit an image steadily, subject to a delay factor
+                emit = False
+                t_now = time.time()  # should we redo time.time later on?
                 if not self.muxer.empty():
-                    # TODO: add ability to handle multiple video streams...for now just assumes one
+                    t_next_image = self.muxer.top(0)[0]  # 0 is the identifier for a single camera
+                    if self.t_last_emit is None:
+                        self.t_last_emit = t_now  # say now is the last emit time
+                    if self.t_last_image is None:
+                        if (t_now - self.t_last_emit) > self.dt_delay:
+                            emit = True
+                    else:
+                        if (t_now - self.t_last_emit) > (t_next_image - self.t_last_image + self.dt_delay):
+                            emit = True
+                if emit:
                     image_out = self.muxer.pop(0)  # 0 is the identifier for a single camera
-                    if image_out is not None:
-                        print('sending image to display')
-                        self.update.emit([image_out.data])
-                else:
-                    print('No image available')
+                    self.update.emit([image_out.data])
+                    self.t_last_emit = t_now
+                    self.t_last_image = t_now
 
         except Exception as e:
             logging.warning(e, exc_info=True)
