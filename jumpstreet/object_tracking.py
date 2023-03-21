@@ -5,8 +5,8 @@ import logging
 from time import sleep
 
 import zmq
-
 from jumpstreet.utils import BaseClass, init_some_end
+
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking.tracker2d import BasicBoxTracker2D
 from avstack.modules.tracking.tracks import format_data_container_as_string
