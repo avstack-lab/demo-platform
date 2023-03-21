@@ -64,8 +64,19 @@ class VideoTrackMuxer(BaseClass):
 
     def mux(self, image, tracks):
         """Mux together an image with track data using opencv"""
-        # TODO: actually implement the muxing
-        return image.data
+        import cv2  # defer import due to conflict with qt
+        color = (0, 255, 0)
+        img = image.data
+        for track in tracks:
+            box = track.box
+            img = cv2.rectangle(
+                    img,
+                    (int(box.xmin), int(box.ymin)),
+                    (int(box.xmax), int(box.ymax)),
+                    color,
+                    2,
+                )
+        return img
     
     def __getattr__(self, attr):
         """Try to use muxed_buffer's attributes"""
@@ -73,40 +84,3 @@ class VideoTrackMuxer(BaseClass):
             return getattr(self.muxed_buffer, attr)
         except AttributeError as e:
             raise AttributeError('Could not find {} attribute'.format(attr))
-
-
-    # def emit(self):
-    #     """Emit a muxed image frame with track bounding boxes and data
-        
-    #     Note that once the system thinks it is ready to go, it will continue
-    #     to emit images at a fixed rate, even if the track data is coming in variably
-    #     this may lead to frames without track data. This characteristic underscores
-    #     the importance of the dt_delay parameter. A higher delay allows more wiggle
-    #     room for the track data to come in late."""
-
-    #     # Start when we have video and track data that overlap by some measure
-    #     if not self.ready:
-    #         # we want to start at the earliest videos
-    #         t_latest_track = self.track_buffer.get_lowest_latest_priority()
-    #         if t_latest_track > t_latest_video + self.dt_delay:
-    #             self.ready = True
-
-    #     # Now we can start
-    #     if self.ready:
-    #         # check if we have a frame to mux and emit
-    #         image = None
-    #         tracks = None
-    #         t_synch = None
-    #         out = self.mux(image, tracks)
-        
-    #         # TODO: adaptively tune the dt_delay for optimal performance?
-    #         self.clean(t_synch)
-    #     else:
-    #         out = None
-    #     return out
-
-    # def mux(self, image, tracks):
-    #     pass
-
-    # def clean(self, t):
-    #     """Clear buffers up until the time point"""
