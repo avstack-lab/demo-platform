@@ -77,24 +77,28 @@ class MainLoop(QObject):
                     image_data_container = DataContainer(frame=frame, timestamp=timestamp,
                                                     data=image, source_identifier=identifier)
                     self.video_buffer.push(image_data_container)
+                    print('Got image!')
 
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
-                    track_data_container = get_data_container_from_line(data.decode())
+                    track_data_container = get_data_container_from_line(data.decode(), identifier_override=0)
                     self.track_buffer.push(track_data_container)
+                    print('Got tracks!')
 
                 # -- run the muxer and load an image when we're ready
                 self.muxer.process()
 
                 # TODO: add some kind of rate monitor here to ensure steady sending
                 # with a fixed (or nearly fixed) delay factor to allow for processing
-                if self.muxer.empty():
+                if not self.muxer.empty():
                     # TODO: add ability to handle multiple video streams...for now just assumes one
-                    image_out = self.muxer.pop(self.muxer.data_ids)
+                    image_out = self.muxer.pop(0)  # 0 is the identifier for a single camera
                     if image_out is not None:
                         print('sending image to display')
-                        self.update.emit([image_out])
+                        self.update.emit([image_out.data])
+                else:
+                    print('No image available')
 
         except Exception as e:
             logging.warning(e, exc_info=True)

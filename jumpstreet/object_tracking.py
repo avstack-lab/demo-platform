@@ -47,7 +47,7 @@ class ObjectTracker(BaseClass):
 
         # -- process data
         if self.model is not None:
-            tracks = self.model(detections, frame=detections.frame, identifier="tracker-1")
+            tracks = self.model(detections, frame=detections.frame, identifier="tracker-0")
             self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
             tracks = format_data_container_as_string(tracks).encode()
         else:

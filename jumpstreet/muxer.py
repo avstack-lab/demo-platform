@@ -26,17 +26,33 @@ class VideoTrackMuxer(BaseClass):
                 # -- select either the above or below track
                 track_bucket = self.track_buffer.data[video_id]
                 t_target = video_bucket.top()[0]
-                track_below = track_bucket.pop_all_below(t_target)
-                dt_below =  abs(t_target - track_below[0])
+
+                # -- get below tracks (pop since we don't need anymore afterwards...maybe)
+                track_below = track_bucket.pop_all_below(t_target, with_priority=True)
+                if len(track_below) > 0:
+                    track_below = track_below[-1]
+                    dt_below =  abs(t_target - track_below[0])
+                else:
+                    track_below = None
+
+                # -- get above track
                 if not track_bucket.empty():
                     track_above = track_bucket.top()
                     dt_above = abs(t_target - track_above[0])
-                    track_select = track_below[1] if dt_below <= dt_above else track_above[1]
-                    dt_select = min(dt_below, dt_below)
                 else:
+                    track_above = None
+
+                # -- make a track selection
+                if track_below is None:
+                    track_select = track_above[1]
+                    dt_select = dt_above
+                elif track_above is None:
                     track_select = track_below[1]
                     dt_select = dt_below
-                
+                else:
+                    track_select = track_below[1] if dt_below <= dt_above else track_above[1]
+                    dt_select = min(dt_below, dt_below)
+
                 # -- if they are within a threshold, mux!
                 if dt_select <= t_max_delta:
                     image = video_bucket.pop()
@@ -49,7 +65,7 @@ class VideoTrackMuxer(BaseClass):
     def mux(self, image, tracks):
         """Mux together an image with track data using opencv"""
         # TODO: actually implement the muxing
-        return image
+        return image.data
     
     def __getattr__(self, attr):
         """Try to use muxed_buffer's attributes"""
