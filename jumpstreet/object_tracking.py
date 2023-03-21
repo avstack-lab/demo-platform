@@ -9,6 +9,7 @@ import zmq
 from jumpstreet.utils import BaseClass, init_some_end
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking.tracker2d import BasicBoxTracker2D
+from avstack.modules.tracking.tracks import format_data_container_as_string
 
 
 class ObjectTracker(BaseClass):
@@ -45,11 +46,15 @@ class ObjectTracker(BaseClass):
         detections = get_data_container_from_line(data.decode())
 
         # -- process data
-        tracks = self.model(detections, frame=detections.frame, identifier="tracker-1")
-        self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
+        if self.model is not None:
+            tracks = self.model(detections, frame=detections.frame, identifier="tracker-1")
+            self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
+            tracks = format_data_container_as_string(tracks).encode()
+        else:
+            tracks = b'No tracks yet'
 
         # -- send data at backend
-        # self.backend.send_multipart([b"tracks", tracks)
+        self.backend.send_multipart([b"tracks", tracks])
 
 
 def main(args):

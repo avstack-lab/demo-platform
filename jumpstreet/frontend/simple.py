@@ -12,7 +12,6 @@ import jumpstreet
 import sys
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QObject, pyqtSignal
-import numpy as np
 
 
 class MainLoop(QObject):
@@ -54,6 +53,7 @@ class MainLoop(QObject):
         # self.buffer = jumpstreet.buffer.VideoBuffer(identifier=0)
         
     def run(self):
+        from avstack.modules.tracking.tracks import get_data_container_from_line
         try:
             while True:
                 socks = dict(self.poller.poll())
@@ -72,12 +72,14 @@ class MainLoop(QObject):
                     print('sending image to display')
                     self.update.emit([image])
 
-                # # -- get trigger from track data
-                # if self.frontend_tracks in socks:
-                #     tracks = self.frontend_tracks.recv()
-                #     t_start, t_end = self.trigger(tracks)
-                #     images_out = self.buffer.trigger(t_start, t_end)
-                #     self.image_buffer.emit(images_out)
+                # -- get trigger from track data
+                if self.frontend_tracks in socks:
+                    key, data = self.frontend_tracks.recv_multipart()
+                    tracks = get_data_container_from_line(data.decode())
+                    print(tracks)
+                    # t_start, t_end = self.trigger(tracks)
+                    # images_out = self.buffer.trigger(t_start, t_end)
+                    # self.image_buffer.emit(images_out)
 
         except Exception as e:
             logging.warning(e, exc_info=True)
