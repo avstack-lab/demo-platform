@@ -12,8 +12,6 @@ import jumpstreet
 import sys
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QObject, pyqtSignal
-from avstack.modules.tracking.tracks import get_data_container_from_line
-from avstack.datastructs import DataContainer
 
 
 class MainLoop(QObject):
@@ -58,6 +56,11 @@ class MainLoop(QObject):
             self.video_buffer, self.track_buffer, identifier=0, dt_delay=dt_delay)
 
     def run(self):
+        from avstack.modules.tracking.tracks import get_data_container_from_line
+        from avstack.datastructs import DataContainer
+        self.video_buffer.init()
+        self.track_buffer.init()
+        self.muxer.init()
         try:
             while True:
                 socks = dict(self.poller.poll())

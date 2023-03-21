@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any
 from jumpstreet.utils import BaseClass
-from avstack.datastructs import DataManager
 
 
 @dataclass(order=True)
@@ -15,7 +14,12 @@ class BasicDataBuffer(BaseClass):
     NAME = 'data-buffer'
     def __init__(self, identifier, max_size) -> None:
         super().__init__(self.NAME, identifier)
-        self.data_manager = DataManager(max_size)
+        self.max_size = max_size
+        self.data_manager = None  # NOTE: need to defer this until after initialization due to Qt error
+
+    def init(self):
+        from avstack.datastructs import DataManager
+        self.data_manager = DataManager(self.max_size)
 
     def __getattr__(self, attr):
         """Try to use data_manager's attributes"""

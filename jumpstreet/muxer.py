@@ -1,6 +1,5 @@
 from jumpstreet.utils import BaseClass
 from jumpstreet.buffer import BasicDataBuffer
-from avstack.datastructs import DataContainer
 
 
 class VideoTrackMuxer(BaseClass):
@@ -15,8 +14,13 @@ class VideoTrackMuxer(BaseClass):
         self.dt_delay = dt_delay
         self.ready = False
 
+    def init(self):
+        self.muxed_buffer.init()  # need to explicitly call initialize due to Qt import error
+
     def process(self, t_max_delta=0.05):
         """Check the data buffer and add any muxed frames that we can"""
+        from avstack.datastructs import DataContainer
+
         for video_id, video_bucket in self.video_buffer.data.items():
             if self.track_buffer.has_data(video_id):
                 # -- select either the above or below track
