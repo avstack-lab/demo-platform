@@ -3,7 +3,6 @@
 """
 Author: Nate Zelter
 Date: February 2023
-
 """
 
 import argparse
@@ -65,20 +64,22 @@ class SensorDataReceiver(BaseClass):
             BACKEND, 
             BIND=True)
 
-        self.print(f"initializing poller...", end="")
+        self.print(f"initializing frontend poller...", end="")
         self.poller = zmq.Poller()
         self.poller.register(self.frontend, zmq.POLLIN) # register poller with SUB frontend
         print("done")
 
 
     def poll(self):
-        socks = dict(self.poller.poll(timeout=1000)) # timeout in ms
+        print("starting poll()")
+        socks = dict(self.poller.poll(timeout=500)) # timeout in ms
 
         if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
+            print("polling")
             msg = self.frontend.recv_multipart()
             response = process_image_data(msg)
             self.backend.send_multipart(response)  
-
+        print("ending poll()")
 
     def close(self):
         self.frontend.close()
