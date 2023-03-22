@@ -178,8 +178,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--send_dir",
         type=str,
-        # default="./data/ADL-Rundle-6/img1",
-        default="./data/data/tracking/MOT15/train/ADL-Rundle-6/img1",
+        default="./data/ADL-Rundle-6/img1",
         help="Directory for data replay",
     )
     parser.add_argument(
