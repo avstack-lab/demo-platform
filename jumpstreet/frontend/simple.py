@@ -67,7 +67,7 @@ class MainLoop(QObject):
         self.muxer.init()
         try:
             while True:
-                socks = dict(self.poller.poll())
+                socks = dict(self.poller.poll(timeout=10))  # timeout in ms
                 # TODO: have a REALLY short limit on the poller so we don't delay emitting frames
 
                 # -- add video data to buffer
