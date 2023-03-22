@@ -7,3 +7,6 @@
 [submodule "third_party/raspberry-as-gige-camera"]
 	path = third_party/raspberry-as-gige-camera
 	url = https://github.com/avstack-lab/raspberry-as-gige-camera.git
+[submodule "third_party/lib-avstack-api"]
+	path = third_party/lib-avstack-api
+	url = https://github.com/avstack-lab/lib-avstack-api
