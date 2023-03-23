@@ -1,3 +1,5 @@
+import time
+import threading
 from jumpstreet.utils import BaseClass
 from jumpstreet.buffer import BasicDataBuffer
 
@@ -15,10 +17,29 @@ class VideoTrackMuxer(BaseClass):
 
     def init(self):
         self.muxed_buffer.init()  # need to explicitly call initialize due to Qt import error
+        from avstack.datastructs import DataContainer
+        self.DataContainer = DataContainer
+        
+    def start_continuous_process_thread(self, execute_rate=100, t_max_delta=0.05):
+        """start up a thread for the processing function"""
+        self.thread = threading.Thread(target=self.continuous_process, args=(execute_rate,t_max_delta), daemon=True)
+        self.thread.start()
+        
+    def continuous_process(self, execute_rate=100, t_max_delta=0.05):
+        self.t_last_execute = None
+        execute_dt = 1./execute_rate
+        while True:
+            t_now = time.time()
+            # -- check if we're ready for a trigger
+            if (self.t_last_execute is None) or (t_now - self.t_last_execute >= execute_dt-1e-5):
+                self.t_last_execute = t_now
+                self.process(t_max_delta)
+
+            # -- sleep approximately until the next trigger time
+            time.sleep(max(0, execute_dt - (t_now-self.t_last_execute) - 1e-4))
 
     def process(self, t_max_delta=0.05):
         """Check the data buffer and add any muxed frames that we can"""
-        from avstack.datastructs import DataContainer
 
         for video_id, video_bucket in self.video_buffer.data.items():
             if self.track_buffer.has_data(video_id):
@@ -58,7 +79,7 @@ class VideoTrackMuxer(BaseClass):
                     frame = image.frame
                     timestamp = image.timestamp
                     image_mux = self.mux(image, track_select)
-                    mux_data_container = DataContainer(frame, timestamp, image_mux, video_id)
+                    mux_data_container = self.DataContainer(frame, timestamp, image_mux, video_id)
                     self.muxed_buffer.push(mux_data_container)
 
     def mux(self, image, tracks):

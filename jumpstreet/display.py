@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import logging
-from jumpstreet.utils import BaseClass
+from jumpstreet.utils import BaseClass, TimeMonitor
 from PyQt5.QtCore import Qt, QThread
 from PyQt5.QtGui import QImage, QPixmap, QPalette, QPainter
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
@@ -66,9 +65,9 @@ class StreamThrough(Display):
 class QImageViewer(QMainWindow):
     def __init__(self, width=800, height=800):
         super().__init__()
-
         self.printer = QPrinter()
         self.scaleFactor = 0.0
+        self.time_monitor = TimeMonitor()
 
         self.imageLabel = QLabel()
         self.imageLabel.setBackgroundRole(QPalette.Base)
@@ -90,7 +89,6 @@ class QImageViewer(QMainWindow):
 
     def open(self):
         options = QFileDialog.Options()
-        # fileName = QFileDialog.getOpenFileName(self, "Open File", QDir.currentPath())
         fileName, _ = QFileDialog.getOpenFileName(self, 'QFileDialog.getOpenFileName()', '',
                                                   'Images (*.png *.jpeg *.jpg *.bmp *.gif)', options=options)
         if fileName:
@@ -114,6 +112,7 @@ class QImageViewer(QMainWindow):
         self.printAct.setEnabled(True)
         self.fitToWindowAct.setEnabled(True)
         self.updateActions()
+        self.time_monitor.trigger()
 
         if not self.fitToWindowAct.isChecked():
             self.imageLabel.adjustSize()
