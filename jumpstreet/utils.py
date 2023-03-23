@@ -1,5 +1,7 @@
 import numpy as np
 import zmq
+import time
+from collections import deque
 
 
 class BaseClass:
@@ -38,6 +40,26 @@ class BaseClass:
         except AttributeError as e:
             name = self.name
         print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
+
+
+class TimeMonitor(BaseClass):
+    def __init__(self, maxlen=10) -> None:
+        super().__init__('time-monitor', 0, verbose=True)
+        self.dt_history = deque([], maxlen=maxlen)
+        self.last_t = None
+
+    def trigger(self):
+        if self.last_t is None:
+            self.last_t = time.time()
+        else:
+            new_t = time.time()
+            self.dt_history.append(new_t - self.last_t)
+            if len(self.dt_history) > 3:
+                self.last_t = new_t
+                dt = np.mean(self.dt_history)
+                fps = 1./dt
+                std = np.std([1./dt for dt in self.dt_history])
+                self.print(f'FPS: {fps:4.2f},   FPS std: {1./std:2.3f}', end="\r")
 
 
 def init_some_end(

@@ -2,10 +2,9 @@
 
 import argparse
 import logging
-from time import sleep
 
 import zmq
-from jumpstreet.utils import BaseClass, init_some_end
+from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
 
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking.tracker2d import SortTracker2D
