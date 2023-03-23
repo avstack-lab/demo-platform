@@ -124,6 +124,9 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port_tracks", type=int, default=5554)
     parser.add_argument("--port_images", type=int, default=5552)
+    parser.add_argument("--width", type=int, default=1920)
+    parser.add_argument("--height", type=int, default=1080)
+    parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
@@ -132,6 +135,6 @@ if __name__ == "__main__":
         PORT_IMAGES=args.port_images)
 
     app = QApplication(sys.argv)
-    display = jumpstreet.display.StreamThrough(main_loop=main_loop, identifier=0)
+    display = jumpstreet.display.StreamThrough(main_loop=main_loop, width=args.width, height=args.height, identifier=0, verbose=args.verbose)
     display.start()
     sys.exit(app.exec())

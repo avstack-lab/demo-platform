@@ -61,8 +61,8 @@ class SensorDataReplayer(BaseClass):
 
     NAME = "data-replayer"
 
-    def __init__(self, context, HOST, PORT, identifier, send_dir, pattern=zmq.PUB, rate=10) -> None:
-        super().__init__(self.NAME, identifier)
+    def __init__(self, context, HOST, PORT, identifier, send_dir, pattern=zmq.PUB, rate=10, verbose=False) -> None:
+        super().__init__(self.NAME, identifier=identifier, verbose=verbose)
         self.pattern = pattern
         self.backend = init_some_end(
             cls=self,
@@ -100,20 +100,24 @@ class SensorDataReplayer(BaseClass):
         g = 0
         
         # -- send data
-        self.print("sending data...", end="")
+        if self.verbose:
+            self.print("sending data...", end="")
         msg = {'timestamp':self.image_loader.counter/self.rate,
                'frame':self.image_loader.counter,
                'identifier':self.identifier,
                'intrinsics':[a, b, g, u, v]}
         self._send_image_data(data, msg)
-        print("done")
+        if self.verbose:
+            print("done")
 
         # -- acknowledge
         if self.pattern == zmq.REQ:
-            self.print("waiting for acknowledge...", end="")
+            if self.verbose:
+                self.print("waiting for acknowledge...", end="")
             ack = self.backend.recv()
             assert ack == b"OK"
-            print("done")
+            if self.verbose:
+                print("done")
 
     def _send_image_data(self, array, msg):
         if array.flags["C_CONTIGUOUS"]:
@@ -132,11 +136,11 @@ def start_client(task, *args):
     process.start()
 
 
-def main_single(HOST, PORT, identifier, send_rate, send_dir):
+def main_single(HOST, PORT, identifier, send_rate, send_dir, verbose):
     """Runs sending on a single client"""
     context = SerializingContext()
     replayer = SensorDataReplayer(
-        context, HOST=HOST, PORT=PORT, identifier=identifier, send_dir=send_dir, rate=send_rate
+        context, HOST=HOST, PORT=PORT, identifier=identifier, send_dir=send_dir, rate=send_rate, verbose=verbose,
     )
     try:
         while True:
@@ -151,7 +155,7 @@ def main(args):
     """Run sensor replayer clients"""
     for i in range(args.nclients):
         start_client(
-            main_single, args.host, args.port, i, args.send_rate, args.send_dir
+            main_single, args.host, args.port, i, args.send_rate, args.send_dir, args.verbose,
         )
     while True:
         time.sleep(1)
@@ -176,6 +180,10 @@ if __name__ == "__main__":
         type=str,
         default="./data/ADL-Rundle-6/img1",
         help="Directory for data replay",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
     )
 
     args = parser.parse_args()

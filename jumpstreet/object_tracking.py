@@ -8,7 +8,7 @@ import zmq
 from jumpstreet.utils import BaseClass, init_some_end
 
 from avstack.modules.perception.detections import get_data_container_from_line
-from avstack.modules.tracking.tracker2d import BasicBoxTracker2D
+from avstack.modules.tracking.tracker2d import SortTracker2D
 from avstack.modules.tracking.tracks import format_data_container_as_string
 
 
@@ -16,14 +16,14 @@ class ObjectTracker(BaseClass):
     NAME = "object-tracker"
 
     def __init__(
-        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, IN_BIND=True, OUT_BIND=True
+        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, IN_BIND=True, OUT_BIND=True, verbose=False,
     ) -> None:
         """Set up front and back ends
 
         Front end: sub
         Back end: pub
         """
-        super().__init__(name=self.NAME, identifier=1)
+        super().__init__(name=self.NAME, identifier=1, verbose=verbose)
         self.frontend = init_some_end(
             self,
             context,
@@ -38,7 +38,7 @@ class ObjectTracker(BaseClass):
             self, context, "backend", zmq.PUB, OUT_HOST, OUT_PORT, BIND=OUT_BIND
         )
         self.n_dets = 0
-        self.model = BasicBoxTracker2D(framerate=30)
+        self.model = SortTracker2D(framerate=30)
 
     def poll(self):
         # -- get data from frontend
@@ -47,8 +47,9 @@ class ObjectTracker(BaseClass):
 
         # -- process data
         if self.model is not None:
-            tracks = self.model(detections, frame=detections.frame, identifier="tracker-0")
-            self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
+            tracks = self.model(detections, t=detections.timestamp, frame=detections.frame, identifier="tracker-0")
+            if self.verbose:
+                self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
             tracks = format_data_container_as_string(tracks).encode()
         else:
             tracks = b'No tracks yet'
@@ -68,6 +69,7 @@ def main(args):
         args.out_port,
         args.in_bind,
         args.out_bind,
+        args.verbose,
     )
 
     try:
@@ -105,6 +107,10 @@ if __name__ == "__main__":
         "--out_bind",
         action="store_true",
         help="Whether or not the output connection binds here",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
     )
 
     args = parser.parse_args()

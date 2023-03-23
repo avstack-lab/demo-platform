@@ -3,9 +3,10 @@ import zmq
 
 
 class BaseClass:
-    def __init__(self, name, identifier) -> None:
+    def __init__(self, name, identifier, verbose=False) -> None:
         self.name = name
         self.identifier = identifier
+        self.verbose=verbose
         self.frontend = None
         self.backend = None
 

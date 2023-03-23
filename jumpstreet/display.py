@@ -13,8 +13,8 @@ from PyQt5.QtWidgets import QLabel, QSizePolicy, QScrollArea, QMessageBox, QMain
 class Display(BaseClass):
     NAME = "display"
 
-    def __init__(self, identifier, runnable=None) -> None:
-        super().__init__(self.NAME, identifier)
+    def __init__(self, identifier, runnable=None, verbose=False) -> None:
+        super().__init__(self.NAME, identifier, verbose)
         self.runnable = runnable
 
     def start(self):
@@ -27,8 +27,8 @@ class Display(BaseClass):
 
 
 class ConfirmationDisplay(Display):
-    def __init__(self, identifier=0) -> None:
-        super().__init__(identifier, main_loop=None)
+    def __init__(self, identifier=0, verbose=False) -> None:
+        super().__init__(identifier, main_loop=None, verbose=verbose)
 
     def start(self):
         self.print("started display process")
@@ -36,14 +36,15 @@ class ConfirmationDisplay(Display):
     def update(self, images):
         ks = images.keys()
         lvs = [len(imgs) for imgs in images.values()]
-        self.print(f"received image batch with keys {ks}" + \
-                   f"and value lens {lvs} images")
+        if self.verbose:
+            self.print(f"received image batch with keys {ks}" + \
+                    f"and value lens {lvs} images")
 
 
 class StreamThrough(Display):
-    def __init__(self, main_loop, identifier=0) -> None:
-        super().__init__(identifier)
-        self.imageViewer = QImageViewer()
+    def __init__(self, main_loop, width=800, height=800, identifier=0, verbose=False) -> None:
+        super().__init__(identifier, verbose=verbose)
+        self.imageViewer = QImageViewer(width, height)
         self.thread = QThread()
         self.worker = main_loop
         self.worker.moveToThread(self.thread)
@@ -56,13 +57,14 @@ class StreamThrough(Display):
         self.thread.start()
 
     def update(self, image_buffer):
-        print('received image from worker')
+        if self.verbose:
+            print('received image from worker')
         assert len(image_buffer) == 1, "For now only 1 image at a time"
         self.imageViewer.show_image_from_array(image_buffer[0])
 
 
 class QImageViewer(QMainWindow):
-    def __init__(self):
+    def __init__(self, width=800, height=800):
         super().__init__()
 
         self.printer = QPrinter()
@@ -84,7 +86,7 @@ class QImageViewer(QMainWindow):
         self.createMenus()
 
         self.setWindowTitle("Image Viewer")
-        self.resize(800, 600)
+        self.resize(width, height)
 
     def open(self):
         options = QFileDialog.Options()

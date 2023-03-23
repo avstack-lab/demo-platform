@@ -23,13 +23,13 @@ class ObjectDetection(BaseClass):
 
     def __init__(
         self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
-            dataset='coco-person', model='fasterrcnn') -> None:
+            dataset='coco-person', model='fasterrcnn', verbose=False) -> None:
         """Set up front and back ends
 
         Front end: req
         Back end: pub
         """
-        super().__init__(name=self.NAME, identifier=identifier)
+        super().__init__(name=self.NAME, identifier=identifier, verbose=verbose)
         self.frontend = init_some_end(
             self, context, "frontend", zmq.REQ, IN_HOST, IN_PORT, BIND=False
         )
@@ -83,7 +83,8 @@ class ObjectDetection(BaseClass):
         else:
             detections = b'No detections yet'
         self.n_imgs += 1
-        self.print(f"received image - total is {self.n_imgs}", end="\n")
+        if self.verbose:
+            self.print(f"received image - total is {self.n_imgs}", end="\n")
         # -- send data at backend
         self.backend.send_multipart([b"detections", detections])
         # -- say we're ready for more
@@ -98,12 +99,12 @@ def start_worker(task, *args):
     return process
 
 
-def main_single(IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, model):
+def main_single(IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, model, verbose):
     """Runs polling on a single worker"""
     context = SerializingContext()
     detector = ObjectDetection(
         context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
-        model=model
+        model=model, verbose=verbose,
     )
     try:
         while True:
@@ -126,7 +127,8 @@ def main(args):
             args.out_port,
             args.out_bind,
             i,
-            args.model
+            args.model,
+            args.verbose,
         )
         procs.append(proc)
 
@@ -173,6 +175,10 @@ if __name__ == "__main__":
         choices=["none", "fasterrcnn"],
         default="none",
         help="Perception model name to run"
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
     )
 
     args = parser.parse_args()
