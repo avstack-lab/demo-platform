@@ -14,13 +14,15 @@ import os
 import time
 import json
 import numpy as np
+import cv2
 
 import zmq
 import PySpin
 
 from context import SerializingContext
-from utils import BaseClass, init_some_end, send_jpg_pubsub
+from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
 
+STOP_KEY = 'q'
 DEFAULT_BACKEND_PORT = 6551
 ACCEPTABLE_SENSOR_TYPES = [
     'camera-flir-bfs',
@@ -33,7 +35,7 @@ class Sensor(BaseClass):
         Pattern: Data aquisition --> context.socket(zmq.PUB)
     """
 
-    # NAME = "default-sensor-name"
+    NAME = "sensor"
 
     def __init__(self,
                  context, 
@@ -45,8 +47,7 @@ class Sensor(BaseClass):
                  verbose=False,
                  *args,
                  **kwargs) -> None:
-        
-        super().__init__(self.name, identifier)
+        super().__init__(self.NAME, identifier)
 
         if type in ACCEPTABLE_SENSOR_TYPES:
             self.type = type
@@ -97,7 +98,31 @@ class Sensor(BaseClass):
             cam.AcquisitionFrameRateEnable.SetValue(True) #enable changes to FPS
             cam.AcquisitionFrameRate.SetValue(cam_fps) # max is 24fps for FLIR BFS
 
-            self.handle = cam
+            # new (start)
+            image_dimensions = (cam_height_px, cam_width_px)
+            cam.BeginAcquisition()
+            for i in range(100):
+                ptr = cam.GetNextImage()
+                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
+                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)
+                # img = np.ascontiguousarray(img)
+                array = img.tobytes()
+                msg = b'sample'
+                # send_array_pubsub(self.backend, msg, array)
+                # self.backend.send_array_pubsub(array, msg, False)
+                print(len(img))
+                image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
+                cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
+                key = cv2.waitKey(30)
+                if key == ord(STOP_KEY):
+                    print('Received STOP_KEY signal')
+                    ptr.Release()
+                    # cam.EndAcquisition()
+                    break
+            # new (end)
+
+
+            # self.handle = cam
 
 
         elif self.type == 'camera-rpi':
@@ -117,19 +142,16 @@ class Sensor(BaseClass):
     def stop_capture(self):
         pass
 
-    def publish(self, data):
+    def publish(self):
         if self.type == 'camera-flir-bfs':
-            # TODO implement publish logic for bfs
             image_ptr = self.handle.GetNextImage()
-            image_dimensions = (int(self.configs.get('height_px', 0)), int(self.configs.get('width_px', 0)))
-            image_array = np.frombuffer(image_ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
-
-            ## <send data over zmq PUB here> ##
-
+            # image_dimensions = (int(self.configs.get('height_px', 0)), int(self.configs.get('width_px', 0)))
+            # image_array = np.frombuffer(image_ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
+            image_array = np.frombuffer(image_ptr.GetData(), dtype=np.uint8)
+            msg = b''
+            self.backend.send_array(image_array, msg, copy=False)
             image_ptr.Release()
 
-
-            pass
         elif self.type == 'camera-rpi':
             pass
         else:
@@ -142,11 +164,10 @@ class Sensor(BaseClass):
 
 
 
-def main(argsm, configs):
+def main(args, configs):
 
     ### Instantiate Sensor and configure device ###
     context = SerializingContext()
-
     sensor = Sensor(
         context,  
         configs['name'],
@@ -156,37 +177,31 @@ def main(argsm, configs):
     )
     print("Sensor successfully created in sensor.py")
 
-    handle = sensor.initialize()
+    sensor.initialize()
     print("Sensor successfully initialized in sensor.py")
 
-
-    while True:
-        sensor.publish(handle)
-
-
-
-    ### Publish sensor data (loop) ###
-    try:
-        while True:
-            ## --- send data
-            msg = b'<data to send>'
-            print(msg)
-            time.sleep(1)
-
-            # sensor.se
+    # sensor.start_capture()
+    # print("Sensor successfully initiated capture sequence, starting to publish()")
+    # for i in range(100):
+    #     sensor.publish()
 
 
 
-            # publisher1.send_multipart([b"A", b"Hello from node 1!"])
+    # ### Publish sensor data (loop) ###
+    # try:
+    #     while True:
+    #         ## --- send data
+    #         msg = b'<data to send>'
+    #         print(msg)
+    #         time.sleep(1)
+    #         # publisher1.send_multipart([b"A", b"Hello from node 1!"])
 
-            ## ---
 
-
-    except Exception as e:
-        logging.warning(e, exc_info=True)
-    finally:
-        sensor.close()
-        print("Sensor successfully closed in sensor.py")
+    # except Exception as e:
+    #     logging.warning(e, exc_info=True)
+    # finally:
+    #     sensor.close()
+    #     print("Sensor successfully closed in sensor.py")
 
 
 
@@ -199,8 +214,8 @@ if __name__ == "__main__":
         'type': 'FLIR-BFS-50S50C',
         'serial': '22395929',
         'ip': '192.168.1.1',
-        'width_px': '480',
-        'height_px': '640',
+        'width_px': '2448',
+        'height_px': '2048',
         'fps': '10',
         'frame_size_bytes': '307200'  
         },
@@ -209,8 +224,8 @@ if __name__ == "__main__":
         'type': 'FLIR-BFS-50S50C',
         'serial': '22395953',
         'ip': '192.168.1.2',
-        'width_px': '480',
-        'height_px': '640',
+        'width_px': '2448',
+        'height_px': '2048',
         'fps': '10',
         'frame_size_bytes': '307200'  
         }
