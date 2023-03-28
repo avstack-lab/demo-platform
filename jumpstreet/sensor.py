@@ -7,15 +7,8 @@ Date: March 2023
 """
 
 import argparse
-import glob
-import logging
-import multiprocessing
-import os
-import time
-import json
 import numpy as np
 import cv2
-
 import zmq
 import PySpin
 
@@ -28,6 +21,28 @@ ACCEPTABLE_SENSOR_TYPES = [
     'camera-flir-bfs',
     'camera-rpi'
 ]
+
+def flir_capture(handle, image_dimensions):
+            handle.BeginAcquisition()
+
+            for i in range(50):
+                ptr = handle.GetNextImage()
+                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
+                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
+                if not img.flags["C_CONTIGUOUS"]:
+                    img = np.ascontiguousarray(img)
+                msg = 'sample'
+                image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
+                cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
+                key = cv2.waitKey(30)
+                if key == ord(STOP_KEY):
+                    print('Received STOP_KEY signal')
+                    ptr.Release()
+                    handle.EndAcquisition()
+                    break
+                ptr.Release()
+            handle.EndAcquisition()
+            handle.DeInit()
 
 class Sensor(BaseClass):
     """
@@ -42,7 +57,8 @@ class Sensor(BaseClass):
                  identifier, 
                  type,
                  configs, 
-                 backend_port,
+                 backend,
+                 backend_other,
                  host="*",
                  verbose=False,
                  *args,
@@ -62,10 +78,23 @@ class Sensor(BaseClass):
             "backend", 
             zmq.PUB, 
             host, 
-            backend_port, 
+            backend, 
             BIND=True)
         
+        if backend_other is not None:
+            self.backend_other = init_some_end(
+                self,
+                context,
+                'backend_other',
+                zmq.PUB,
+                host,
+                backend_other,
+                BIND=True)
+
+        
         self.verbose = verbose
+        self.handle = None
+        self.streaming = False
 
 
 
@@ -84,45 +113,47 @@ class Sensor(BaseClass):
             ## Connect to camera
             system = PySpin.System.GetInstance()
             cam_list = system.GetCameras()
-            cam = cam_list.GetBySerial(cam_serial)
+            self.handle = cam_list.GetBySerial(cam_serial)
             try:
-                cam.Init()
+                self.handle.Init()
                 print(f'Successfully connected to {cam_name} via serial number')
             except:
                 raise RuntimeError(f"Unable to connect to {cam_name} via serial number")
 
             ## Set the camera properties here
-            cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
-            cam.Width.SetValue(cam_width_px)
-            cam.Height.SetValue(cam_height_px)
-            cam.AcquisitionFrameRateEnable.SetValue(True) #enable changes to FPS
-            cam.AcquisitionFrameRate.SetValue(cam_fps) # max is 24fps for FLIR BFS
+            self.handle.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
+            self.handle.Width.SetValue(cam_width_px)
+            self.handle.Height.SetValue(cam_height_px)
+            self.handle.AcquisitionFrameRateEnable.SetValue(True) #enable changes to FPS
+            self.handle.AcquisitionFrameRate.SetValue(cam_fps) # max is 24fps for FLIR BFS
 
-            # new (start)
-            image_dimensions = (cam_height_px, cam_width_px)
-            cam.BeginAcquisition()
-            for i in range(100):
-                ptr = cam.GetNextImage()
-                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
-                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)
-                # img = np.ascontiguousarray(img)
-                array = img.tobytes()
-                msg = b'sample'
-                # send_array_pubsub(self.backend, msg, array)
-                # self.backend.send_array_pubsub(array, msg, False)
-                print(len(img))
+            self.image_dimensions = (cam_height_px, cam_width_px)
+
+            # with self.handle:
+            #     pass
+            # flir_capture(self.handle, self.image_dimensions)
+
+
+            #! Method should end here
+            self.handle.BeginAcquisition()
+            for i in range(50):
+                ptr = self.handle.GetNextImage()
+                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(self.image_dimensions)
+                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
+                if not img.flags["C_CONTIGUOUS"]:
+                    img = np.ascontiguousarray(img)
+                msg = 'sample'
+
+                send_array_pubsub(self.backend, msg, img)
+
                 image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
                 cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
                 key = cv2.waitKey(30)
                 if key == ord(STOP_KEY):
                     print('Received STOP_KEY signal')
                     ptr.Release()
-                    # cam.EndAcquisition()
+                    self.handle.EndAcquisition()
                     break
-            # new (end)
-
-
-            # self.handle = cam
 
 
         elif self.type == 'camera-rpi':
@@ -130,9 +161,37 @@ class Sensor(BaseClass):
         else:
             pass
 
+
     def start_capture(self):
+        print("entered start_capture() ")
+
         if self.type == 'camera-flir-bfs':
+            image_dimensions = self.image_dimensions
             self.handle.BeginAcquisition()
+
+            for i in range(50):
+                ptr = self.handle.GetNextImage()
+                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
+                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
+                if not img.flags["C_CONTIGUOUS"]:
+                    img = np.ascontiguousarray(img)
+                msg = 'sample'
+
+                send_array_pubsub(self.backend, msg, img)
+
+                image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
+                cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
+                key = cv2.waitKey(30)
+                if key == ord(STOP_KEY):
+                    print('Received STOP_KEY signal')
+                    ptr.Release()
+                    self.handle.EndAcquisition()
+                    break
+                ptr.Release()
+            self.handle.EndAcquisition()
+            self.handle.DeInit()
+            # del cam    
+
         elif self.type == 'camera-rpi':
             pass
         else:
@@ -142,22 +201,8 @@ class Sensor(BaseClass):
     def stop_capture(self):
         pass
 
-    def publish(self):
-        if self.type == 'camera-flir-bfs':
-            image_ptr = self.handle.GetNextImage()
-            # image_dimensions = (int(self.configs.get('height_px', 0)), int(self.configs.get('width_px', 0)))
-            # image_array = np.frombuffer(image_ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
-            image_array = np.frombuffer(image_ptr.GetData(), dtype=np.uint8)
-            msg = b''
-            self.backend.send_array(image_array, msg, copy=False)
-            image_ptr.Release()
 
-        elif self.type == 'camera-rpi':
-            pass
-        else:
-            pass
 
-    
     def reconfigure():
         pass
 
@@ -173,35 +218,17 @@ def main(args, configs):
         configs['name'],
         args.type,
         configs,
-        args.backend
+        args.backend,
+        args.backend_other
     )
-    print("Sensor successfully created in sensor.py")
+
 
     sensor.initialize()
     print("Sensor successfully initialized in sensor.py")
 
-    # sensor.start_capture()
-    # print("Sensor successfully initiated capture sequence, starting to publish()")
-    # for i in range(100):
-    #     sensor.publish()
+    sensor.start_capture()
+    # print("foo")
 
-
-
-    # ### Publish sensor data (loop) ###
-    # try:
-    #     while True:
-    #         ## --- send data
-    #         msg = b'<data to send>'
-    #         print(msg)
-    #         time.sleep(1)
-    #         # publisher1.send_multipart([b"A", b"Hello from node 1!"])
-
-
-    # except Exception as e:
-    #     logging.warning(e, exc_info=True)
-    # finally:
-    #     sensor.close()
-    #     print("Sensor successfully closed in sensor.py")
 
 
 
@@ -236,7 +263,6 @@ if __name__ == "__main__":
         "--type", 
         choices=ACCEPTABLE_SENSOR_TYPES,
         type=str, 
-        default="camera", # NEED TO CHANGE DEFAULT TO Null
         help="Selection of sensor type")
     parser.add_argument(
         "--backend", 
@@ -249,7 +275,7 @@ if __name__ == "__main__":
         help="Extra backend port (used only in select classes)")
     parser.add_argument(
         "--verbose", 
-        action="store_true") # unsure if --verbose is needed
+        action="store_true") 
     
     args = parser.parse_args()
 
