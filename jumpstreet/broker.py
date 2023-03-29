@@ -119,7 +119,8 @@ class LoadBalancingBrokerXSub(BaseClass):
         # --- handle incoming data on the frontend
         if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
             msg, array = self.frontend.recv_array(copy=False)
-            # print(f'received image of size {array.shape}')
+            if self.verbose:
+                self.print(f'received image of size {array.shape}', end='\n')
 
             #  -- Route data to last-used worker, if ready
             if self.backend_ready:
@@ -128,9 +129,6 @@ class LoadBalancingBrokerXSub(BaseClass):
                 self.backend.send_array_envelope(worker, client, msg, array, copy=False)
                 if not self.workers:
                     self.backend_ready = False
-                # else:
-                #     print(worker, msg)
-                #     raise RuntimeError("No worker available")
 
             # -- handle secondary xpub
             self.backend_xpub.send_array(array, msg=msg, copy=False)
@@ -138,7 +136,8 @@ class LoadBalancingBrokerXSub(BaseClass):
         # --- handle subscription requests
         if self.backend_xpub in socks and socks[self.backend_xpub] == zmq.POLLIN:
             msg = self.backend_xpub.recv_multipart()
-            # print(f'received subscription message: "{msg[0].decode("utf-8")}"')
+            if self.verbose:
+                self.print(f'received subscription message: "{msg[0].decode("utf-8")}"', end='\n')
             self.frontend.send_multipart(msg)
 
     def close(self):

@@ -56,10 +56,10 @@ class Sensor(BaseClass):
                  context, 
                  identifier, 
                  type,
-                 configs, 
+                 configs,
+                 host,
                  backend,
                  backend_other,
-                 host="locahost",
                  verbose=False,
                  *args,
                  **kwargs) -> None:
@@ -134,22 +134,37 @@ class Sensor(BaseClass):
             # flir_capture(self.handle, self.image_dimensions)
 
 
+            # TODO Fill this in later....
+            a = 700  # this is bogus...fix later...f*mx
+            b = 700  # this is bofus...fix later...f*my
+            u = cam_width_px/2
+            v = cam_height_px/2
+            g = 0
+            msg = {'timestamp':3.14,
+               'frame':2,
+               'identifier':self.identifier,
+               'intrinsics':[a, b, g, u, v]}
+
+
+
             #! Method should end here
             self.handle.BeginAcquisition()
-            for i in range(50):
+            for i in range(100):
                 ptr = self.handle.GetNextImage()
                 arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(self.image_dimensions)
                 img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
                 if not img.flags["C_CONTIGUOUS"]:
                     img = np.ascontiguousarray(img)
-                msg = 'sample'
+                # msg = 'sample'
 
                 # send_array_pubsub(self.backend, msg, img)
                 self.backend.send_array(img, msg)
+                if self.verbose:
+                    self.print("Sent image", end="\n")
 
 
-                image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
-                cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
+                # image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
+                # cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
                 key = cv2.waitKey(30)
                 if key == ord(STOP_KEY):
                     print('Received STOP_KEY signal')
@@ -179,7 +194,7 @@ class Sensor(BaseClass):
                     img = np.ascontiguousarray(img)
                 msg = 'sample'
 
-                send_array_pubsub(self.backend, msg, img)
+                self.backend.send_array(img, msg)
 
                 image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
                 cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
@@ -192,7 +207,7 @@ class Sensor(BaseClass):
                 ptr.Release()
             self.handle.EndAcquisition()
             self.handle.DeInit()
-            # del cam    
+            # del self.handle    
 
         elif self.type == 'camera-rpi':
             pass
@@ -209,8 +224,6 @@ class Sensor(BaseClass):
         pass
 
 
-
-
 def main(args, configs):
 
     ### Instantiate Sensor and configure device ###
@@ -220,15 +233,17 @@ def main(args, configs):
         configs['name'],
         args.type,
         configs,
+        args.host,
         args.backend,
-        args.backend_other
+        args.backend_other,
+        verbose=args.verbose
     )
 
 
     sensor.initialize()
     print("Sensor successfully initialized in sensor.py")
 
-    sensor.start_capture()
+    # sensor.start_capture()
     # print("foo")
 
 
@@ -276,6 +291,12 @@ if __name__ == "__main__":
         choices=ACCEPTABLE_SENSOR_TYPES,
         type=str, 
         help="Selection of sensor type")
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Host"
+    )
     parser.add_argument(
         "--backend", 
         type=int, 

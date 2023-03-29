@@ -15,8 +15,8 @@ class ObjectTracker(BaseClass):
     NAME = "object-tracker"
 
     def __init__(
-        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, IN_BIND=True, OUT_BIND=True, verbose=False,
-    ) -> None:
+        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT,
+        IN_BIND=True, OUT_BIND=True, verbose=False) -> None:
         """Set up front and back ends
 
         Front end: sub
@@ -38,6 +38,7 @@ class ObjectTracker(BaseClass):
         )
         self.n_dets = 0
         self.model = SortTracker2D(framerate=30)
+        self.verbose = verbose
 
     def poll(self):
         # -- get data from frontend
@@ -68,7 +69,7 @@ def main(args):
         args.out_port,
         args.in_bind,
         args.out_bind,
-        args.verbose,
+        verbose=args.verbose,
     )
 
     try:
@@ -108,9 +109,8 @@ if __name__ == "__main__":
         help="Whether or not the output connection binds here",
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-    )
-
+        "--verbose", 
+        action="store_true") 
+    
     args = parser.parse_args()
     main(args)

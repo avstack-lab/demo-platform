@@ -57,7 +57,7 @@ replay: $(INSTALL_STAMP)
 data_broker: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/broker.py \
 			lb_with_xsub_extra_xpub --frontend 5550 \
-			--backend 5551 --backend_other 5552
+			--backend 5551 --backend_other 5552 --verbose
 
 .PHONY: detection_workers
 detection_workers: $(INSTALL_STAMP)
@@ -70,7 +70,8 @@ detection_workers: $(INSTALL_STAMP)
 tracking_worker: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/object_tracking.py \
 			--in_host localhost --in_port 5553 --in_bind \
-			--out_host localhost --out_port 5554 --out_bind
+			--out_host localhost --out_port 5554 --out_bind \
+			--verbose
 
 .PHONY: frontend
 frontend: $(INSTALL_STAMP)
@@ -80,4 +81,5 @@ frontend: $(INSTALL_STAMP)
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensor.py \
-			--type camera-flir-bfs --backend 5552
+			--type camera-flir-bfs --host 127.0.0.1 \
+			--backend 5550 --verbose

@@ -22,6 +22,7 @@ lib-avstack-core = {path="third_party/lib-avstack-core", develop=true}
 lib-avstack-api = {path="third_party/lib-avstack-api", develop=true}
 PyQt5 = "^5.15.2"
 websocket-client = "^1.5.1"
+spinnaker_python =  { file = "spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl" }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7"
