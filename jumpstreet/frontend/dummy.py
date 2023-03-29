@@ -19,7 +19,7 @@ def main(args):
         pattern=zmq.SUB,
         HOST=args.host,
         PORT=args.port_tracks,
-        BIND=False,
+        BIND=True,
         subopts=b"",
     )
     frontend_images = jumpstreet.utils.init_some_end(
@@ -29,7 +29,7 @@ def main(args):
         pattern=zmq.SUB,
         HOST=args.host,
         PORT=args.port_images,
-        BIND=False,
+        BIND=True,
         subopts=b"",
     )
 

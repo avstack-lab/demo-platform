@@ -59,7 +59,7 @@ class Sensor(BaseClass):
                  configs, 
                  backend,
                  backend_other,
-                 host="*",
+                 host="locahost",
                  verbose=False,
                  *args,
                  **kwargs) -> None:
@@ -79,7 +79,7 @@ class Sensor(BaseClass):
             zmq.PUB, 
             host, 
             backend, 
-            BIND=True)
+            BIND=False)
         
         if backend_other is not None:
             self.backend_other = init_some_end(
@@ -89,7 +89,7 @@ class Sensor(BaseClass):
                 zmq.PUB,
                 host,
                 backend_other,
-                BIND=True)
+                BIND=False)
 
         
         self.verbose = verbose
@@ -144,7 +144,9 @@ class Sensor(BaseClass):
                     img = np.ascontiguousarray(img)
                 msg = 'sample'
 
-                send_array_pubsub(self.backend, msg, img)
+                # send_array_pubsub(self.backend, msg, img)
+                self.backend.send_array(img, msg)
+
 
                 image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
                 cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
@@ -249,6 +251,16 @@ if __name__ == "__main__":
     'camera_2': {
         'name': 'camera_2',
         'type': 'FLIR-BFS-50S50C',
+        'serial': '22395953',
+        'ip': '192.168.1.2',
+        'width_px': '2448',
+        'height_px': '2048',
+        'fps': '10',
+        'frame_size_bytes': '307200'  
+        },
+    'camera_3': {
+        'name': 'camera_3',
+        'type': 'Raspberry-Pi',
         'serial': '22395953',
         'ip': '192.168.1.2',
         'width_px': '2448',
