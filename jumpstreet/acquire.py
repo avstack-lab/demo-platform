@@ -60,11 +60,11 @@ def main(camera_configs):
         # print(f"image array: {sys.getsizeof(image_array)}\n arrray len: {len(image_array)}")
 
 
-        # frame = cv2.cvtColor(image_array, cv2.COLOR_BayerBG2BGR)  # for RGB camera demosaicing
+        frame = cv2.cvtColor(image_array, cv2.COLOR_BayerBG2BGR)  # for RGB camera demosaicing
+        # print(type(frame)) # numpy.ndarray
         # print(f"color image array: {sys.getsizeof(frame)}\n color image array len: {len(frame)}")
 
-        # frame_show = cv2.resize(frame, None, fx=0.25, fy=0.25)
-        image_show = cv2.resize(image_array, None, fx=1, fy=1)
+        image_show = cv2.resize(frame, None, fx=0.25, fy=0.25)
         cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
         key = cv2.waitKey(30)
         if key == ord(STOP_KEY):
@@ -97,8 +97,8 @@ if __name__ == '__main__':
             'type': 'FLIR-BFS-50S50C',
             'serial': '22395929',
             'ip': '192.168.1.1',
-            'width_px': '480',
-            'height_px': '640',
+            'width_px': '2448',
+            'height_px': '2048',
             'fps': '10',
             'frame_size_bytes': '307200'  
             },

@@ -40,7 +40,6 @@ class VideoTrackMuxer(BaseClass):
 
     def process(self, t_max_delta=0.05):
         """Check the data buffer and add any muxed frames that we can"""
-
         for video_id, video_bucket in self.video_buffer.data.items():
             if self.track_buffer.has_data(video_id):
                 # -- select either the above or below track
