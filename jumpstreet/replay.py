@@ -155,7 +155,7 @@ def main(args):
     """Run sensor replayer clients"""
     for i in range(args.nclients):
         start_client(
-            main_single, args.host, args.port, i, args.send_rate, args.send_dir, args.verbose,
+            main_single, args.host, args.port, args.camera_id, args.send_rate, args.send_dir, args.verbose,
         )
     while True:
         time.sleep(1)
@@ -163,6 +163,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize sensor replayer client")
+    parser.add_argument("--camera_id", default="camera_1", help="Identifier of the camera")
     parser.add_argument(
         "-n", "--nclients", type=int, default=1, help="Number of clients"
     )

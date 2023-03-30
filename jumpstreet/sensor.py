@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 import zmq
 import PySpin
+import time
 
 from context import SerializingContext
 from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
@@ -23,26 +24,27 @@ ACCEPTABLE_SENSOR_TYPES = [
 ]
 
 def flir_capture(handle, image_dimensions):
-            handle.BeginAcquisition()
+    handle.BeginAcquisition()
 
-            for i in range(50):
-                ptr = handle.GetNextImage()
-                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
-                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
-                if not img.flags["C_CONTIGUOUS"]:
-                    img = np.ascontiguousarray(img)
-                msg = 'sample'
-                image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
-                cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
-                key = cv2.waitKey(30)
-                if key == ord(STOP_KEY):
-                    print('Received STOP_KEY signal')
-                    ptr.Release()
-                    handle.EndAcquisition()
-                    break
-                ptr.Release()
+    for i in range(50):
+        ptr = handle.GetNextImage()
+        arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(image_dimensions)
+        img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
+        if not img.flags["C_CONTIGUOUS"]:
+            img = np.ascontiguousarray(img)
+        msg = 'sample'
+        image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
+        cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
+        key = cv2.waitKey(30)
+        if key == ord(STOP_KEY):
+            print('Received STOP_KEY signal')
+            ptr.Release()
             handle.EndAcquisition()
-            handle.DeInit()
+            break
+        ptr.Release()
+    handle.EndAcquisition()
+    handle.DeInit()
+
 
 class Sensor(BaseClass):
     """
@@ -96,8 +98,6 @@ class Sensor(BaseClass):
         self.handle = None
         self.streaming = False
 
-
-
     def initialize(self):
         if self.type == 'camera-flir-bfs':
 
@@ -140,17 +140,26 @@ class Sensor(BaseClass):
             u = cam_width_px/2
             v = cam_height_px/2
             g = 0
-            msg = {'timestamp':3.14,
-               'frame':2,
+            msg = {'timestamp':0.0,
+               'frame': 0,
                'identifier':self.identifier,
                'intrinsics':[a, b, g, u, v]}
 
-
-
             #! Method should end here
             self.handle.BeginAcquisition()
-            for i in range(100):
+            t0 = 0
+            counter = 0
+            while True:
+                
                 ptr = self.handle.GetNextImage()
+
+                timetamp = float(ptr.GetTimeStamp()) * (10 ** -9)
+                if counter == 0:
+                    t0 = timetamp
+                msg['timestamp'] = round(timetamp - t0, 9)
+                msg['frame'] = counter
+                    
+
                 arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(self.image_dimensions)
                 img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR) #np.ndarray
                 if not img.flags["C_CONTIGUOUS"]:
@@ -165,12 +174,12 @@ class Sensor(BaseClass):
 
                 # image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
                 # cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
-                key = cv2.waitKey(30)
-                if key == ord(STOP_KEY):
-                    print('Received STOP_KEY signal')
-                    ptr.Release()
-                    self.handle.EndAcquisition()
-                    break
+                # key = cv2.waitKey(30)
+                # if key == ord(STOP_KEY):
+                #     print('Received STOP_KEY signal')
+                #     ptr.Release()
+                #     self.handle.EndAcquisition()
+                #     break
 
 
         elif self.type == 'camera-rpi':

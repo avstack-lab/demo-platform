@@ -18,9 +18,10 @@ import jumpstreet
 class MainLoop(QObject):
     update = pyqtSignal(object)
 
-    def __init__(self, context, HOST, PORT_TRACKS, PORT_IMAGES, dt_delay=0.1):
+    def __init__(self, display_cam_id, context, HOST, PORT_TRACKS, PORT_IMAGES, dt_delay=0.1):
         super().__init__()
         self.quit_flag = False
+        self.display_cam_id = display_cam_id
 
         # -- set up frontend data receivers
         self.frontend_tracks = jumpstreet.utils.init_some_end(
@@ -80,6 +81,7 @@ class MainLoop(QObject):
                     )
                     timestamp = msg['timestamp']
                     frame = msg['frame']
+                    print(f"received frame at time: {timestamp}")
                     identifier = msg['identifier']
                     image_data_container = DataContainer(frame=frame, timestamp=timestamp,
                                                     data=image, source_identifier=identifier)
@@ -88,14 +90,15 @@ class MainLoop(QObject):
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
-                    track_data_container = get_data_container_from_line(data.decode(), identifier_override=0)
+                    track_data_container = get_data_container_from_line(data.decode(), identifier_override=args.display_cam_id)
                     self.track_buffer.push(track_data_container)
+                    print(track_data_container.timestamp)
 
                 # -- emit an image, subject to a delay factor
                 emit = False
                 t_now = time.time()  # should we redo time.time later on?
                 if not self.muxer.empty():
-                    t_next_image = self.muxer.top(0)[0]  # 0 is the identifier for a single camera
+                    t_next_image = self.muxer.top(self.display_cam_id)[0]  # 0 is the identifier for a single camera
                     if self.t_last_emit is None:
                         self.t_last_emit = t_now  # say now is the last emit time
                     if self.t_last_image is None:
@@ -112,7 +115,7 @@ class MainLoop(QObject):
                         if dt_from_first_emit >= (dt_from_first_image + self.dt_delay-1e-6):
                             emit = True
                 if emit:
-                    image_out = self.muxer.pop(0)  # 0 is the identifier for a single camera
+                    image_out = self.muxer.pop(self.display_cam_id)  # 0 is the identifier for a single camera
                     t_now_again = time.time()
                     if self.t_first_emit is None:
                         self.t_first_emit = t_now_again
@@ -131,6 +134,7 @@ class MainLoop(QObject):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Front end process")
+    parser.add_argument("--display_cam_id", type=str, help="Identifier name of camera image to display")
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port_tracks", type=int, default=5554)
     parser.add_argument("--port_images", type=int, default=5552)
@@ -141,7 +145,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     context = jumpstreet.context.SerializingContext()
-    main_loop = MainLoop(context=context, HOST=args.host, PORT_TRACKS=args.port_tracks,
+    main_loop = MainLoop(display_cam_id=args.display_cam_id, context=context, HOST=args.host, PORT_TRACKS=args.port_tracks,
         PORT_IMAGES=args.port_images)
 
     app = QApplication(sys.argv)

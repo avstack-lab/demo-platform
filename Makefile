@@ -51,7 +51,7 @@ test: $(INSTALL_STAMP)
 .PHONY: replay
 replay: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/replay.py -n 1 --send_dir $(DATA) --send_rate $(RATE)\
-		 	--host 127.0.0.1 --port 5550
+		 	--host 127.0.0.1 --port 5550 --camera_id camera_1
 
 .PHONY: data_broker
 data_broker: $(INSTALL_STAMP)
@@ -61,10 +61,10 @@ data_broker: $(INSTALL_STAMP)
 
 .PHONY: detection_workers
 detection_workers: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/object_detection.py -n 2 \
+		$(POETRY) run python jumpstreet/object_detection.py -n 3 \
 			--in_host localhost --in_port 5551 \
 			--out_host localhost --out_port 5553 \
-			--model fasterrcnn
+			--model fasterrcnn --verbose
 
 .PHONY: tracking_worker
 tracking_worker: $(INSTALL_STAMP)
@@ -76,7 +76,8 @@ tracking_worker: $(INSTALL_STAMP)
 .PHONY: frontend
 frontend: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/frontend/simple.py \
-			--host localhost --port_tracks 5554 --port_images=5552
+			--host localhost --port_tracks 5554 --port_images=5552 \
+			--display_cam_id camera_1
 
 .PHONY: flir
 flir: $(INSTALL_STAMP)
