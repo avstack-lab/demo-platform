@@ -7,16 +7,26 @@ import zmq
 from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
 
 from avstack.modules.perception.detections import get_data_container_from_line
-from avstack.modules.tracking.tracker2d import SortTracker2D
+from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
+
+
+def init_tracking_model(model, framerate=30):
+    if model == 'sort':
+        tracker = tracker2d.SortTracker2D(framerate=framerate)
+    elif model == 'passthrough':
+        tracker = tracker2d.PassthroughTracker2D(framerate=framerate)
+    else:
+        raise NotImplementedError(model)
+    return tracker
 
 
 class ObjectTracker(BaseClass):
     NAME = "object-tracker"
 
     def __init__(
-        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT,
-        IN_BIND=True, OUT_BIND=True, verbose=False) -> None:
+        self, context, model, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, IN_BIND=True, OUT_BIND=True, verbose=False,
+    ) -> None:
         """Set up front and back ends
 
         Front end: sub
@@ -37,8 +47,7 @@ class ObjectTracker(BaseClass):
             self, context, "backend", zmq.PUB, OUT_HOST, OUT_PORT, BIND=OUT_BIND
         )
         self.n_dets = 0
-        self.model = SortTracker2D(framerate=30)
-        self.verbose = verbose
+        self.model = init_tracking_model(model)
 
     def poll(self):
         # -- get data from frontend
@@ -63,6 +72,7 @@ def main(args):
     context = zmq.Context.instance()
     tracker = ObjectTracker(
         context,
+        args.model,
         args.in_host,
         args.in_port,
         args.out_host,
@@ -83,6 +93,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
+    parser.add_argument("--model", default="sort", choices=["passthrough", "sort"], help="Tracking model selection")
     parser.add_argument(
         "--in_host", default="localhost", type=str, help="Hostname to connect to"
     )

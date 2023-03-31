@@ -23,7 +23,7 @@ class ObjectDetection(BaseClass):
 
     def __init__(
         self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
-            dataset='coco-person', model='fasterrcnn', verbose=False) -> None:
+            dataset='coco-person', model='fasterrcnn', threshold=0.5, verbose=False) -> None:
         """Set up front and back ends
 
         Front end: req
@@ -40,9 +40,7 @@ class ObjectDetection(BaseClass):
 
         # -- set up perception model
         if model == 'fasterrcnn':
-            # defer import until here
-
-            self.model = MMDetObjectDetector2D(dataset=dataset, model=model)
+            self.model = MMDetObjectDetector2D(dataset=dataset, model=model, threshold=threshold)
         elif model in ["none", None]:
             logging.warning('Not running true object detection')
             self.model = None
@@ -61,6 +59,12 @@ class ObjectDetection(BaseClass):
         """
         # -- get data from frontend
         address, metadata, array = self.frontend.recv_array_multipart(copy=True)
+        if metadata['msg']['channel_order'].lower() == 'rgb':
+            is_rgb = True
+        elif metadata['msg']['channel_order'].lower() == 'bgr':
+            is_rgb = False
+        else:
+            raise NotImplementedError(metadata['msg']['channel_order'])
         timestamp = metadata['msg']['timestamp']
         frame = metadata['msg']['frame']
         identifier = metadata['msg']['identifier']
@@ -78,7 +82,7 @@ class ObjectDetection(BaseClass):
 
         # -- process data
         if self.model is not None:
-            detections = self.model(image, identifier=metadata['msg']['identifier'])
+            detections = self.model(image, identifier=metadata['msg']['identifier'], is_rgb=is_rgb)
             detections = format_data_container_as_string(detections).encode()
         else:
             detections = b'No detections yet'

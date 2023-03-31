@@ -46,6 +46,7 @@ class NearRealTimeImageLoader():
                 time.sleep(dt_wait)
         t_pre_2 = time.time()
         data = imread(self.image_paths[self.i_next_img])
+        channel_order = 'bgr'  # most likely loads as BGR since cv2
         self.counter += 1
         self.i_next_img = (self.i_next_img + 1) % len(self.image_paths)
         t_post = time.time()
@@ -53,7 +54,7 @@ class NearRealTimeImageLoader():
             self.t0 = t_post
         self.dt_last_load = t_post - t_pre_2
         self.next_target_send = self.t0 + self.counter * self.interval
-        return data
+        return data, channel_order
 
 
 class SensorDataReplayer(BaseClass):
@@ -92,7 +93,7 @@ class SensorDataReplayer(BaseClass):
 
     def send(self):
         # -- load data
-        data = self.image_loader.load_next()
+        data, channel_order = self.image_loader.load_next()
         a = 700  # this is bogus...fix later...f*mx
         b = 700  # this is bofus...fix later...f*my
         u = data.shape[1]/2
@@ -104,6 +105,7 @@ class SensorDataReplayer(BaseClass):
             self.print("sending data...", end="")
         msg = {'timestamp':self.image_loader.counter/self.rate,
                'frame':self.image_loader.counter,
+               'channel_order':channel_order,
                'identifier':self.identifier,
                'intrinsics':[a, b, g, u, v]}
         self._send_image_data(data, msg)
