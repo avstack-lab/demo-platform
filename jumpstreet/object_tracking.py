@@ -5,6 +5,7 @@ import logging
 
 import zmq
 from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
+from jumpstreet.buffer import BasicDataBuffer, TimeManagedDataBuffer
 
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking import tracker2d
@@ -25,7 +26,8 @@ class ObjectTracker(BaseClass):
     NAME = "object-tracker"
 
     def __init__(
-        self, context, model, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, IN_BIND=True, OUT_BIND=True, verbose=False,
+        self, context, model, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT,
+        IN_BIND=True, OUT_BIND=True, dt_delay=0.1, verbose=False,
     ) -> None:
         """Set up front and back ends
 
@@ -48,20 +50,29 @@ class ObjectTracker(BaseClass):
         )
         self.n_dets = 0
         self.model = init_tracking_model(model)
+        self.dt_delay = dt_delay
+        self.t_last_emit = None
+        self.detection_buffer = BasicDataBuffer(identifier=0, max_size=30)
 
     def poll(self):
         # -- get data from frontend
         key, data = self.frontend.recv_multipart()
         detections = get_data_container_from_line(data.decode())
 
+        # -- put detections on the buffer
+        self.detection_buffer.push(detections)
+
         # -- process data
         if self.model is not None:
+            if 
+
+            print(detections.frame, detections.timestamp)
             tracks = self.model(detections, t=detections.timestamp, frame=detections.frame, identifier="tracker-0")
             if self.verbose:
                 self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
             tracks = format_data_container_as_string(tracks).encode()
         else:
-            tracks = b'No tracks yet'
+            tracks = b'No tracking model present'
 
         # -- send data at backend
         self.backend.send_multipart([b"tracks", tracks])

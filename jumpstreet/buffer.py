@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any
+import time
 from jumpstreet.utils import BaseClass
 
 
@@ -10,10 +11,10 @@ class PrioritizedItem:
 
 
 class BasicDataBuffer(BaseClass):
-    """Base class for buffers"""
+    """Basic priority queue for buffers"""
     NAME = 'data-buffer'
-    def __init__(self, identifier, max_size) -> None:
-        super().__init__(self.NAME, identifier)
+    def __init__(self, identifier, max_size, verbose=False) -> None:
+        super().__init__(self.NAME, identifier, verbose)
         self.max_size = max_size
         self.data_manager = None  # NOTE: need to defer this until after initialization due to Qt error
 
@@ -27,7 +28,39 @@ class BasicDataBuffer(BaseClass):
             return getattr(self.data_manager, attr)
         except AttributeError as e:
             raise AttributeError('Could not find {} attribute'.format(attr))
+
+
+class DelayManagedDataBuffer(BaseClass):
+    """A priority queue that emits based on a delay time
     
+    Assumes that all sensors have synchronized clocks
+    --could change this assumption in the future
+    """
+    NAME = 'delay-managed-buffer'
+    def __init__(self, identifier, max_size, dt_delay, verbose=False) -> None:
+        super().__init__(self.NAME, identifier, verbose)
+        self.buffer = BasicDataBuffer(identifier, max_size, verbose)
+        self.dt_delay = dt_delay
+        self.t_last_emit = None
+        self.t_last_data = None
+
+    def emit_one(self):
+        """Only emit a single element that satisfies the delay timing"""
+
+    def emit_all(self):
+        """Emit all elements that satisfy the delay timing"""
+
+
+    def _get_emit_timing(self):
+        """Get the timing of the data for emitting"""
+        t_now = time.time()
+        if self.buffer.empty:
+            return None
+        if self.t_last_emit is None:
+            self.t_last_emit = t_now
+        if self.t_last
+
+
 
 # class _VideoBuffer(BaseClass):
 #     """Base class for video buffers"""

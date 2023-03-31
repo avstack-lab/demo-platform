@@ -40,7 +40,13 @@ class ObjectDetection(BaseClass):
 
         # -- set up perception model
         if model == 'fasterrcnn':
-            self.model = MMDetObjectDetector2D(dataset=dataset, model=model, threshold=threshold)
+            try:
+                self.model = MMDetObjectDetector2D(dataset=dataset, model=model, threshold=threshold, gpu=0)
+            except RuntimeError as e:
+                if 'CUDA error: out of memory' in str(e):
+                    self.model = MMDetObjectDetector2D(dataset=dataset, model=model, threshold=threshold, gpu=1)
+                else:
+                    raise e
         elif model in ["none", None]:
             logging.warning('Not running true object detection')
             self.model = None
