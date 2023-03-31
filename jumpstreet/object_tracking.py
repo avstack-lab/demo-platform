@@ -4,18 +4,18 @@ import argparse
 import logging
 
 import zmq
-from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
-from jumpstreet.buffer import BasicDataBuffer, TimeManagedDataBuffer
-
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
 
+from jumpstreet.buffer import BasicDataBuffer, TimeManagedDataBuffer
+from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
+
 
 def init_tracking_model(model, framerate=30):
-    if model == 'sort':
+    if model == "sort":
         tracker = tracker2d.SortTracker2D(framerate=framerate)
-    elif model == 'passthrough':
+    elif model == "passthrough":
         tracker = tracker2d.PassthroughTracker2D(framerate=framerate)
     else:
         raise NotImplementedError(model)
@@ -26,8 +26,17 @@ class ObjectTracker(BaseClass):
     NAME = "object-tracker"
 
     def __init__(
-        self, context, model, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT,
-        IN_BIND=True, OUT_BIND=True, dt_delay=0.1, verbose=False,
+        self,
+        context,
+        model,
+        IN_HOST,
+        IN_PORT,
+        OUT_HOST,
+        OUT_PORT,
+        IN_BIND=True,
+        OUT_BIND=True,
+        dt_delay=0.1,
+        verbose=False,
     ) -> None:
         """Set up front and back ends
 
@@ -64,15 +73,18 @@ class ObjectTracker(BaseClass):
 
         # -- process data
         if self.model is not None:
-            if 
-
             print(detections.frame, detections.timestamp)
-            tracks = self.model(detections, t=detections.timestamp, frame=detections.frame, identifier="tracker-0")
+            tracks = self.model(
+                detections,
+                t=detections.timestamp,
+                frame=detections.frame,
+                identifier="tracker-0",
+            )
             if self.verbose:
                 self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
             tracks = format_data_container_as_string(tracks).encode()
         else:
-            tracks = b'No tracking model present'
+            tracks = b"No tracking model present"
 
         # -- send data at backend
         self.backend.send_multipart([b"tracks", tracks])
@@ -104,7 +116,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
-    parser.add_argument("--model", default="sort", choices=["passthrough", "sort"], help="Tracking model selection")
+    parser.add_argument(
+        "--model",
+        default="sort",
+        choices=["passthrough", "sort"],
+        help="Tracking model selection",
+    )
     parser.add_argument(
         "--in_host", default="localhost", type=str, help="Hostname to connect to"
     )
@@ -130,9 +147,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether or not the output connection binds here",
     )
-    parser.add_argument(
-        "--verbose", 
-        action="store_true") 
-    
+    parser.add_argument("--verbose", action="store_true")
+
     args = parser.parse_args()
     main(args)

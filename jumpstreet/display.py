@@ -1,12 +1,22 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-from jumpstreet.utils import BaseClass, TimeMonitor
 from PyQt5.QtCore import Qt, QThread
-from PyQt5.QtGui import QImage, QPixmap, QPalette, QPainter
+from PyQt5.QtGui import QImage, QPainter, QPalette, QPixmap
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
-from PyQt5.QtWidgets import QLabel, QSizePolicy, QScrollArea, QMessageBox, QMainWindow, QMenu, QAction, \
-    qApp, QFileDialog
+from PyQt5.QtWidgets import (
+    QAction,
+    QFileDialog,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QScrollArea,
+    QSizePolicy,
+    qApp,
+)
+
+from jumpstreet.utils import BaseClass, TimeMonitor
 
 
 class Display(BaseClass):
@@ -36,12 +46,15 @@ class ConfirmationDisplay(Display):
         ks = images.keys()
         lvs = [len(imgs) for imgs in images.values()]
         if self.verbose:
-            self.print(f"received image batch with keys {ks}" + \
-                    f"and value lens {lvs} images")
+            self.print(
+                f"received image batch with keys {ks}" + f"and value lens {lvs} images"
+            )
 
 
 class StreamThrough(Display):
-    def __init__(self, main_loop, width=800, height=800, identifier=0, verbose=False) -> None:
+    def __init__(
+        self, main_loop, width=800, height=800, identifier=0, verbose=False
+    ) -> None:
         super().__init__(identifier, verbose=verbose)
         self.imageViewer = QImageViewer(width, height)
         self.thread = QThread()
@@ -57,7 +70,7 @@ class StreamThrough(Display):
 
     def update(self, image_buffer):
         if self.verbose:
-            print('received image from worker')
+            print("received image from worker")
         assert len(image_buffer) == 1, "For now only 1 image at a time"
         self.imageViewer.show_image_from_array(image_buffer[0])
 
@@ -89,12 +102,19 @@ class QImageViewer(QMainWindow):
 
     def open(self):
         options = QFileDialog.Options()
-        fileName, _ = QFileDialog.getOpenFileName(self, 'QFileDialog.getOpenFileName()', '',
-                                                  'Images (*.png *.jpeg *.jpg *.bmp *.gif)', options=options)
+        fileName, _ = QFileDialog.getOpenFileName(
+            self,
+            "QFileDialog.getOpenFileName()",
+            "",
+            "Images (*.png *.jpeg *.jpg *.bmp *.gif)",
+            options=options,
+        )
         if fileName:
             image = QImage(fileName)
             if image.isNull():
-                QMessageBox.information(self, "Image Viewer", "Cannot load %s." % fileName)
+                QMessageBox.information(
+                    self, "Image Viewer", "Cannot load %s." % fileName
+                )
                 return
             self.show_image(image)
 
@@ -147,30 +167,59 @@ class QImageViewer(QMainWindow):
         self.updateActions()
 
     def about(self):
-        QMessageBox.about(self, "About Image Viewer",
-                          "<p>The <b>Image Viewer</b> example shows how to combine "
-                          "QLabel and QScrollArea to display an image. QLabel is "
-                          "typically used for displaying text, but it can also display "
-                          "an image. QScrollArea provides a scrolling view around "
-                          "another widget. If the child widget exceeds the size of the "
-                          "frame, QScrollArea automatically provides scroll bars.</p>"
-                          "<p>The example demonstrates how QLabel's ability to scale "
-                          "its contents (QLabel.scaledContents), and QScrollArea's "
-                          "ability to automatically resize its contents "
-                          "(QScrollArea.widgetResizable), can be used to implement "
-                          "zooming and scaling features.</p>"
-                          "<p>In addition the example shows how to use QPainter to "
-                          "print an image.</p>")
+        QMessageBox.about(
+            self,
+            "About Image Viewer",
+            "<p>The <b>Image Viewer</b> example shows how to combine "
+            "QLabel and QScrollArea to display an image. QLabel is "
+            "typically used for displaying text, but it can also display "
+            "an image. QScrollArea provides a scrolling view around "
+            "another widget. If the child widget exceeds the size of the "
+            "frame, QScrollArea automatically provides scroll bars.</p>"
+            "<p>The example demonstrates how QLabel's ability to scale "
+            "its contents (QLabel.scaledContents), and QScrollArea's "
+            "ability to automatically resize its contents "
+            "(QScrollArea.widgetResizable), can be used to implement "
+            "zooming and scaling features.</p>"
+            "<p>In addition the example shows how to use QPainter to "
+            "print an image.</p>",
+        )
 
     def createActions(self):
         self.openAct = QAction("&Open...", self, shortcut="Ctrl+O", triggered=self.open)
-        self.printAct = QAction("&Print...", self, shortcut="Ctrl+P", enabled=False, triggered=self.print_)
+        self.printAct = QAction(
+            "&Print...", self, shortcut="Ctrl+P", enabled=False, triggered=self.print_
+        )
         self.exitAct = QAction("E&xit", self, shortcut="Ctrl+Q", triggered=self.close)
-        self.zoomInAct = QAction("Zoom &In (25%)", self, shortcut="Ctrl++", enabled=False, triggered=self.zoomIn)
-        self.zoomOutAct = QAction("Zoom &Out (25%)", self, shortcut="Ctrl+-", enabled=False, triggered=self.zoomOut)
-        self.normalSizeAct = QAction("&Normal Size", self, shortcut="Ctrl+S", enabled=False, triggered=self.normalSize)
-        self.fitToWindowAct = QAction("&Fit to Window", self, enabled=False, checkable=True, shortcut="Ctrl+F",
-                                      triggered=self.fitToWindow)
+        self.zoomInAct = QAction(
+            "Zoom &In (25%)",
+            self,
+            shortcut="Ctrl++",
+            enabled=False,
+            triggered=self.zoomIn,
+        )
+        self.zoomOutAct = QAction(
+            "Zoom &Out (25%)",
+            self,
+            shortcut="Ctrl+-",
+            enabled=False,
+            triggered=self.zoomOut,
+        )
+        self.normalSizeAct = QAction(
+            "&Normal Size",
+            self,
+            shortcut="Ctrl+S",
+            enabled=False,
+            triggered=self.normalSize,
+        )
+        self.fitToWindowAct = QAction(
+            "&Fit to Window",
+            self,
+            enabled=False,
+            checkable=True,
+            shortcut="Ctrl+F",
+            triggered=self.fitToWindow,
+        )
         self.aboutAct = QAction("&About", self, triggered=self.about)
         self.aboutQtAct = QAction("About &Qt", self, triggered=qApp.aboutQt)
 
@@ -212,12 +261,14 @@ class QImageViewer(QMainWindow):
         self.zoomOutAct.setEnabled(self.scaleFactor > 0.333)
 
     def adjustScrollBar(self, scrollBar, factor):
-        scrollBar.setValue(int(factor * scrollBar.value()
-                               + ((factor - 1) * scrollBar.pageStep() / 2)))
+        scrollBar.setValue(
+            int(factor * scrollBar.value() + ((factor - 1) * scrollBar.pageStep() / 2))
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     from PyQt5.QtWidgets import QApplication
 
     app = QApplication(sys.argv)

@@ -1,14 +1,15 @@
-import numpy as np
-import zmq
 import time
 from collections import deque
+
+import numpy as np
+import zmq
 
 
 class BaseClass:
     def __init__(self, name, identifier, verbose=False) -> None:
         self.name = name
         self.identifier = identifier
-        self.verbose=verbose
+        self.verbose = verbose
         self.frontend = None
         self.backend = None
 
@@ -44,7 +45,7 @@ class BaseClass:
 
 class TimeMonitor(BaseClass):
     def __init__(self, maxlen=10) -> None:
-        super().__init__('time-monitor', 0, verbose=True)
+        super().__init__("time-monitor", 0, verbose=True)
         self.dt_history = deque([], maxlen=maxlen)
         self.last_t = None
 
@@ -57,9 +58,9 @@ class TimeMonitor(BaseClass):
             if len(self.dt_history) > 3:
                 self.last_t = new_t
                 dt = np.mean(self.dt_history)
-                fps = 1./dt
-                std = np.std([1./dt for dt in self.dt_history])
-                self.print(f'FPS: {fps:4.2f},   FPS std: {1./std:2.3f}', end="\r")
+                fps = 1.0 / dt
+                std = np.std([1.0 / dt for dt in self.dt_history])
+                self.print(f"FPS: {fps:4.2f},   FPS std: {1./std:2.3f}", end="\r")
 
 
 def init_some_end(

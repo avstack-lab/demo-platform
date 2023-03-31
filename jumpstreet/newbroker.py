@@ -4,11 +4,13 @@ from __future__ import print_function
 
 import argparse
 import logging
+
 import numpy as np
 import zmq
 
 # from jumpstreet.context import SerializingContext
 from utils import BaseClass, init_some_end
+
 
 class SensorDataReceiver(BaseClass):
     """Load Balancing Broker
@@ -18,8 +20,15 @@ class SensorDataReceiver(BaseClass):
 
     NAME = "receiver"
 
-    def __init__(self, context, FRONTEND=6550, BACKEND=6551,
-            BACKEND_OTHER=6552, identifier=0, verbose=False) -> None:
+    def __init__(
+        self,
+        context,
+        FRONTEND=6550,
+        BACKEND=6551,
+        BACKEND_OTHER=6552,
+        identifier=0,
+        verbose=False,
+    ) -> None:
         super().__init__(self.NAME, identifier)
         self.verbose = verbose
         self.frontend = init_some_end(
@@ -76,6 +85,7 @@ class SensorDataReceiver(BaseClass):
         super().close()
         self.backend_xpub.close()
 
+
 # NZ updated for receiver.py
 def init_broker(broker_type):
     if broker_type.lower() == "receiver":
@@ -87,11 +97,11 @@ def init_broker(broker_type):
 def main(args):
     context = SerializingContext()
     broker = init_broker(args.broker)(
-        context, 
-        FRONTEND=args.frontend, 
+        context,
+        FRONTEND=args.frontend,
         BACKEND=args.backend,
-        verbose=args.verbose, 
-        BACKEND_OTHER=args.backend_other
+        verbose=args.verbose,
+        BACKEND_OTHER=args.backend_other,
     )
     try:
         while True:

@@ -1,11 +1,13 @@
 import argparse
 import logging
+
 import zmq
+
 import jumpstreet
 
 
-def pprint(msg, end='\n'):
-    print(f'::frontend-dummy::{msg}', end=end, flush=True)
+def pprint(msg, end="\n"):
+    print(f"::frontend-dummy::{msg}", end=end, flush=True)
 
 
 def main(args):
@@ -44,17 +46,15 @@ def main(args):
             socks = dict(poller.poll())
             # -- get video buffer to send to display
             if frontend_images in socks:
-                msg, image = frontend_images.recv_array(
-                    copy=False
-                )
+                msg, image = frontend_images.recv_array(copy=False)
                 if args.verbose:
-                    pprint(f'received image of shape {image.shape}!')
+                    pprint(f"received image of shape {image.shape}!")
 
             # -- get trigger from track data
             if frontend_tracks in socks:
                 tracks = frontend_tracks.recv()
                 if args.verbose:
-                    pprint('received tracks!')
+                    pprint("received tracks!")
 
     except Exception as e:
         logging.warning(e, exc_info=True)
@@ -62,6 +62,7 @@ def main(args):
     finally:
         frontend_tracks.close()
         frontend_images.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Front end process")

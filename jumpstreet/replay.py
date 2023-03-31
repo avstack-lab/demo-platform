@@ -11,33 +11,31 @@ import numpy as np
 import zmq
 from cv2 import imread
 
-
-# from jumpstreet.context import SerializingContext
-# from jumpstreet.utils import BaseClass, init_some_end
-from context import SerializingContext
-from utils import BaseClass, init_some_end
+from jumpstreet.context import SerializingContext
+from jumpstreet.utils import BaseClass, init_some_end
 
 
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
 
 
-class NearRealTimeImageLoader():
+class NearRealTimeImageLoader:
     """Loads images at nearly the correct rate
-    
+
     It is expected that this will perform the necessary sleep
     process to enable near-correct-time sending
     """
+
     def __init__(self, image_paths, rate) -> None:
         self.image_paths = image_paths
         self.rate = rate
-        self.interval = 1./rate
+        self.interval = 1.0 / rate
         self.i_next_img = 0
         self.counter = 0
         self.last_load_time = 0
         self.t0 = None
         self.dt_last_load = 0
         self.next_target_send = None
-        
+
     def load_next(self):
         t_pre_1 = time.time()
         if self.next_target_send is not None:
@@ -46,7 +44,7 @@ class NearRealTimeImageLoader():
                 time.sleep(dt_wait)
         t_pre_2 = time.time()
         data = imread(self.image_paths[self.i_next_img])
-        channel_order = 'bgr'  # most likely loads as BGR since cv2
+        channel_order = "bgr"  # most likely loads as BGR since cv2
         self.counter += 1
         self.i_next_img = (self.i_next_img + 1) % len(self.image_paths)
         t_post = time.time()
@@ -62,7 +60,17 @@ class SensorDataReplayer(BaseClass):
 
     NAME = "data-replayer"
 
-    def __init__(self, context, HOST, PORT, identifier, send_dir, pattern=zmq.PUB, rate=10, verbose=False) -> None:
+    def __init__(
+        self,
+        context,
+        HOST,
+        PORT,
+        identifier,
+        send_dir,
+        pattern=zmq.PUB,
+        rate=10,
+        verbose=False,
+    ) -> None:
         super().__init__(self.NAME, identifier=identifier, verbose=verbose)
         self.pattern = pattern
         self.backend = init_some_end(
@@ -82,7 +90,7 @@ class SensorDataReplayer(BaseClass):
             ]
         )
         if len(images) == 0:
-            raise RuntimeError(f'No images were found in {send_dir}!')
+            raise RuntimeError(f"No images were found in {send_dir}!")
         self.rate = rate
         self.image_loader = NearRealTimeImageLoader(image_paths=images, rate=rate)
         if pattern == zmq.REQ:
@@ -96,18 +104,20 @@ class SensorDataReplayer(BaseClass):
         data, channel_order = self.image_loader.load_next()
         a = 700  # this is bogus...fix later...f*mx
         b = 700  # this is bofus...fix later...f*my
-        u = data.shape[1]/2
-        v = data.shape[0]/2
+        u = data.shape[1] / 2
+        v = data.shape[0] / 2
         g = 0
-        
+
         # -- send data
         if self.verbose:
             self.print("sending data...", end="")
-        msg = {'timestamp':self.image_loader.counter/self.rate,
-               'frame':self.image_loader.counter,
-               'channel_order':channel_order,
-               'identifier':self.identifier,
-               'intrinsics':[a, b, g, u, v]}
+        msg = {
+            "timestamp": self.image_loader.counter / self.rate,
+            "frame": self.image_loader.counter,
+            "channel_order": channel_order,
+            "identifier": self.identifier,
+            "intrinsics": [a, b, g, u, v],
+        }
         self._send_image_data(data, msg)
         if self.verbose:
             print("done")
@@ -142,7 +152,13 @@ def main_single(HOST, PORT, identifier, send_rate, send_dir, verbose):
     """Runs sending on a single client"""
     context = SerializingContext()
     replayer = SensorDataReplayer(
-        context, HOST=HOST, PORT=PORT, identifier=identifier, send_dir=send_dir, rate=send_rate, verbose=verbose,
+        context,
+        HOST=HOST,
+        PORT=PORT,
+        identifier=identifier,
+        send_dir=send_dir,
+        rate=send_rate,
+        verbose=verbose,
     )
     try:
         while True:
@@ -157,7 +173,13 @@ def main(args):
     """Run sensor replayer clients"""
     for i in range(args.nclients):
         start_client(
-            main_single, args.host, args.port, args.camera_id, args.send_rate, args.send_dir, args.verbose,
+            main_single,
+            args.host,
+            args.port,
+            args.camera_id,
+            args.send_rate,
+            args.send_dir,
+            args.verbose,
         )
     while True:
         time.sleep(1)
@@ -165,7 +187,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize sensor replayer client")
-    parser.add_argument("--camera_id", default="camera_1", help="Identifier of the camera")
+    parser.add_argument(
+        "--camera_id", default="camera_1", help="Identifier of the camera"
+    )
     parser.add_argument(
         "-n", "--nclients", type=int, default=1, help="Number of clients"
     )

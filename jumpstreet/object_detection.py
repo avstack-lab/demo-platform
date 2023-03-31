@@ -7,23 +7,33 @@ from time import sleep
 
 import numpy as np
 import zmq
+from avstack.calibration import CameraCalibration
+from avstack.geometry import NominalOriginStandard
+from avstack.modules.perception.detections import format_data_container_as_string
+from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
+from avstack.sensors import ImageData
 
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end
-
-from avstack.sensors import ImageData
-from avstack.modules.perception.detections import format_data_container_as_string
-from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
-from avstack.calibration import CameraCalibration
-from avstack.geometry import NominalOriginStandard
 
 
 class ObjectDetection(BaseClass):
     NAME = "object-detector"
 
     def __init__(
-        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
-            dataset='coco-person', model='fasterrcnn', threshold=0.5, verbose=False) -> None:
+        self,
+        context,
+        IN_HOST,
+        IN_PORT,
+        OUT_HOST,
+        OUT_PORT,
+        OUT_BIND,
+        identifier,
+        dataset="coco-person",
+        model="fasterrcnn",
+        threshold=0.5,
+        verbose=False,
+    ) -> None:
         """Set up front and back ends
 
         Front end: req
@@ -39,20 +49,24 @@ class ObjectDetection(BaseClass):
         self.n_imgs = 0
 
         # -- set up perception model
-        if model == 'fasterrcnn':
+        if model == "fasterrcnn":
             try:
-                self.model = MMDetObjectDetector2D(dataset=dataset, model=model, threshold=threshold, gpu=0)
+                self.model = MMDetObjectDetector2D(
+                    dataset=dataset, model=model, threshold=threshold, gpu=0
+                )
             except RuntimeError as e:
-                if 'CUDA error: out of memory' in str(e):
-                    self.model = MMDetObjectDetector2D(dataset=dataset, model=model, threshold=threshold, gpu=1)
+                if "CUDA error: out of memory" in str(e):
+                    self.model = MMDetObjectDetector2D(
+                        dataset=dataset, model=model, threshold=threshold, gpu=1
+                    )
                 else:
                     raise e
         elif model in ["none", None]:
-            logging.warning('Not running true object detection')
+            logging.warning("Not running true object detection")
             self.model = None
         else:
             raise NotImplementedError(model)
-        self.print('initialized perception model!', end="\n")
+        self.print("initialized perception model!", end="\n")
 
         # -- ready to go (need this!)
         self.frontend.send(b"READY")
@@ -65,33 +79,35 @@ class ObjectDetection(BaseClass):
         """
         # -- get data from frontend
         address, metadata, array = self.frontend.recv_array_multipart(copy=True)
-        if metadata['msg']['channel_order'].lower() == 'rgb':
+        if metadata["msg"]["channel_order"].lower() == "rgb":
             is_rgb = True
-        elif metadata['msg']['channel_order'].lower() == 'bgr':
+        elif metadata["msg"]["channel_order"].lower() == "bgr":
             is_rgb = False
         else:
-            raise NotImplementedError(metadata['msg']['channel_order'])
-        timestamp = metadata['msg']['timestamp']
-        frame = metadata['msg']['frame']
-        identifier = metadata['msg']['identifier']
-        a, b, g, u, v = metadata['msg']['intrinsics']
-        P = np.array([[a, g, u, 0],
-                      [0, b, v, 0],
-                      [0, 0, 1, 0]])
-        calib = CameraCalibration(NominalOriginStandard, P, metadata['shape'])
-        image = ImageData(timestamp=timestamp,
-                          frame=frame,
-                          source_ID=identifier,
-                          source_name='camera',
-                          data=np.reshape(array, metadata['shape']),
-                          calibration=calib)
+            raise NotImplementedError(metadata["msg"]["channel_order"])
+        timestamp = metadata["msg"]["timestamp"]
+        frame = metadata["msg"]["frame"]
+        identifier = metadata["msg"]["identifier"]
+        a, b, g, u, v = metadata["msg"]["intrinsics"]
+        P = np.array([[a, g, u, 0], [0, b, v, 0], [0, 0, 1, 0]])
+        calib = CameraCalibration(NominalOriginStandard, P, metadata["shape"])
+        image = ImageData(
+            timestamp=timestamp,
+            frame=frame,
+            source_ID=identifier,
+            source_name="camera",
+            data=np.reshape(array, metadata["shape"]),
+            calibration=calib,
+        )
 
         # -- process data
         if self.model is not None:
-            detections = self.model(image, identifier=metadata['msg']['identifier'], is_rgb=is_rgb)
+            detections = self.model(
+                image, identifier=metadata["msg"]["identifier"], is_rgb=is_rgb
+            )
             detections = format_data_container_as_string(detections).encode()
         else:
-            detections = b'No detections yet'
+            detections = b"No detections yet"
         self.n_imgs += 1
         if self.verbose:
             self.print(f"received image - total is {self.n_imgs}", end="\n")
@@ -109,12 +125,21 @@ def start_worker(task, *args):
     return process
 
 
-def main_single(IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, model, verbose):
+def main_single(
+    IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, model, verbose
+):
     """Runs polling on a single worker"""
     context = SerializingContext()
     detector = ObjectDetection(
-        context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier,
-        model=model, verbose=verbose,
+        context,
+        IN_HOST,
+        IN_PORT,
+        OUT_HOST,
+        OUT_PORT,
+        OUT_BIND,
+        identifier,
+        model=model,
+        verbose=verbose,
     )
     try:
         while True:
@@ -184,7 +209,7 @@ if __name__ == "__main__":
         "--model",
         choices=["none", "fasterrcnn"],
         default="none",
-        help="Perception model name to run"
+        help="Perception model name to run",
     )
     parser.add_argument(
         "--verbose",
