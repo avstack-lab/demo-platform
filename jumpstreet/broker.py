@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import argparse
 import logging
+
 import numpy as np
 import zmq
 
@@ -19,8 +20,16 @@ class LoadBalancingBroker(BaseClass):
 
     NAME = "lb-broker"
 
-    def __init__(self, context, FRONTEND=5550, BACKEND=5551, verbose=False,
-            identifier=0, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        context,
+        FRONTEND=5550,
+        BACKEND=5551,
+        verbose=False,
+        identifier=0,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(self.NAME, identifier)
         self.verbose = verbose
         self.frontend = init_some_end(
@@ -66,7 +75,9 @@ class LoadBalancingBroker(BaseClass):
             elif self.backend_ready and ("IMAGE" in metadata["msg"]):
                 # -- client requests
                 worker = self.workers.pop(0)
-                self.backend.send_array_envelope(worker, client, metadata["msg"], array, copy=False)
+                self.backend.send_array_envelope(
+                    worker, client, metadata["msg"], array, copy=False
+                )
                 if not self.workers:
                     # Don't poll clients if no workers are available and set backend_ready flag to false
                     self.poller.unregister(self.frontend)
@@ -83,8 +94,15 @@ class LoadBalancingBrokerXSub(BaseClass):
 
     NAME = "lb-broker-xsub"
 
-    def __init__(self, context, FRONTEND=5550, BACKEND=5551,
-            BACKEND_OTHER=5552, identifier=0, verbose=False) -> None:
+    def __init__(
+        self,
+        context,
+        FRONTEND=5550,
+        BACKEND=5551,
+        BACKEND_OTHER=5552,
+        identifier=0,
+        verbose=False,
+    ) -> None:
         super().__init__(self.NAME, identifier)
         self.verbose = verbose
         self.frontend = init_some_end(
@@ -120,7 +138,7 @@ class LoadBalancingBrokerXSub(BaseClass):
         if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
             msg, array = self.frontend.recv_array(copy=False)
             if self.verbose:
-                self.print(f'received image of size {array.shape}', end='\n')
+                self.print(f"received image of size {array.shape}", end="\n")
 
             #  -- Route data to last-used worker, if ready
             if self.backend_ready:
@@ -137,7 +155,10 @@ class LoadBalancingBrokerXSub(BaseClass):
         if self.backend_xpub in socks and socks[self.backend_xpub] == zmq.POLLIN:
             msg = self.backend_xpub.recv_multipart()
             if self.verbose:
-                self.print(f'received subscription message: "{msg[0].decode("utf-8")}"', end='\n')
+                self.print(
+                    f'received subscription message: "{msg[0].decode("utf-8")}"',
+                    end="\n",
+                )
             self.frontend.send_multipart(msg)
 
     def close(self):
@@ -148,7 +169,7 @@ class LoadBalancingBrokerXSub(BaseClass):
 def init_broker(broker_type):
     if broker_type.lower() == "lb":
         return LoadBalancingBroker
-    elif broker_type.lower() == 'lb_with_xsub_extra_xpub':
+    elif broker_type.lower() == "lb_with_xsub_extra_xpub":
         return LoadBalancingBrokerXSub
     else:
         raise NotImplementedError(broker_type)
@@ -157,8 +178,11 @@ def init_broker(broker_type):
 def main(args):
     context = SerializingContext()
     broker = init_broker(args.broker)(
-        context, FRONTEND=args.frontend, BACKEND=args.backend,
-        verbose=args.verbose, BACKEND_OTHER=args.backend_other
+        context,
+        FRONTEND=args.frontend,
+        BACKEND=args.backend,
+        verbose=args.verbose,
+        BACKEND_OTHER=args.backend_other,
     )
     try:
         while True:
@@ -172,8 +196,10 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize a broker")
     parser.add_argument(
-        "broker", choices=["lb", "lb_with_xsub_extra_xpub"],
-        type=str, help="Selection of broker type"
+        "broker",
+        choices=["lb", "lb_with_xsub_extra_xpub"],
+        type=str,
+        help="Selection of broker type",
     )
     parser.add_argument(
         "--frontend", type=int, default=5550, help="Frontend port number (clients)"
@@ -182,9 +208,11 @@ if __name__ == "__main__":
         "--backend", type=int, default=5551, help="Backend port number (workers)"
     )
     parser.add_argument(
-        "--backend_other", type=int, help="Extra backend port (used only in select classes)"
+        "--backend_other",
+        type=int,
+        help="Extra backend port (used only in select classes)",
     )
     parser.add_argument("--verbose", action="store_true")
-    
+
     args = parser.parse_args()
     main(args)

@@ -4,19 +4,40 @@ import argparse
 import logging
 
 import zmq
-from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
-
 from avstack.modules.perception.detections import get_data_container_from_line
-from avstack.modules.tracking.tracker2d import SortTracker2D
+from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
+from avstack.datastructs import DelayManagedDataBuffer
+
+from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
+
+
+def init_tracking_model(model):
+    if model == "sort":
+        tracker = tracker2d.SortTracker2D()
+    elif model == "passthrough":
+        tracker = tracker2d.PassthroughTracker2D()
+    else:
+        raise NotImplementedError(model)
+    return tracker
 
 
 class ObjectTracker(BaseClass):
     NAME = "object-tracker"
 
     def __init__(
-        self, context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT,
-        IN_BIND=True, OUT_BIND=True, verbose=False) -> None:
+        self,
+        context,
+        model,
+        IN_HOST,
+        IN_PORT,
+        OUT_HOST,
+        OUT_PORT,
+        IN_BIND=True,
+        OUT_BIND=True,
+        dt_delay=0.1,
+        verbose=False,
+    ) -> None:
         """Set up front and back ends
 
         Front end: sub
@@ -37,25 +58,45 @@ class ObjectTracker(BaseClass):
             self, context, "backend", zmq.PUB, OUT_HOST, OUT_PORT, BIND=OUT_BIND
         )
         self.n_dets = 0
-        self.model = SortTracker2D(framerate=30)
-        self.verbose = verbose
+        self.model = init_tracking_model(model)
+        self.dt_delay = dt_delay
+        self.t_last_emit = None
+        self.detection_buffer = DelayManagedDataBuffer(dt_delay=dt_delay, max_size=30, method='event-driven')
+        self.poller = zmq.Poller()
+        self.poller.register(self.frontend, zmq.POLLIN)
 
     def poll(self):
-        # -- get data from frontend
-        key, data = self.frontend.recv_multipart()
-        detections = get_data_container_from_line(data.decode())
+        sockets = dict(self.poller.poll())
 
-        # -- process data
+        if self.frontend in sockets:
+            # -- get data from frontend
+            key, data = self.frontend.recv_multipart()
+            detections = get_data_container_from_line(data.decode())
+
+            # -- put detections on the buffer
+            self.detection_buffer.push(detections)
+
+        # -- process data, if ready
         if self.model is not None:
-            tracks = self.model(detections, t=detections.timestamp, frame=detections.frame, identifier="tracker-0")
-            if self.verbose:
-                self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
-            tracks = format_data_container_as_string(tracks).encode()
-        else:
-            tracks = b'No tracks yet'
+            detections_dict = self.detection_buffer.emit_one()
+            if len(detections_dict) > 0:
+                # for now, there can only be one key in the detections
+                assert len(detections_dict) == 1
+                detections = detections_dict[list(detections_dict.keys())[0]]
+                if self.verbose:
+                    self.print(f'Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}', end='\n')
+                tracks = self.model(
+                    detections,
+                    t=detections.timestamp,
+                    frame=detections.frame,
+                    identifier="tracker-0",
+                )
+                if self.verbose:
+                    self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
+                tracks = format_data_container_as_string(tracks).encode()
 
-        # -- send data at backend
-        self.backend.send_multipart([b"tracks", tracks])
+                # -- send data at backend
+                self.backend.send_multipart([b"tracks", tracks])
 
 
 def main(args):
@@ -63,6 +104,7 @@ def main(args):
     context = zmq.Context.instance()
     tracker = ObjectTracker(
         context,
+        args.model,
         args.in_host,
         args.in_port,
         args.out_host,
@@ -83,6 +125,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
+    parser.add_argument(
+        "--model",
+        default="sort",
+        choices=["passthrough", "sort"],
+        help="Tracking model selection",
+    )
     parser.add_argument(
         "--in_host", default="localhost", type=str, help="Hostname to connect to"
     )
@@ -108,9 +156,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether or not the output connection binds here",
     )
-    parser.add_argument(
-        "--verbose", 
-        action="store_true") 
-    
+    parser.add_argument("--verbose", action="store_true")
+
     args = parser.parse_args()
     main(args)

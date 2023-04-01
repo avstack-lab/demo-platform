@@ -1,5 +1,6 @@
-from jumpstreet.utils import BaseClass
 import numpy as np
+
+from jumpstreet.utils import BaseClass
 
 
 class Trigger(BaseClass):
