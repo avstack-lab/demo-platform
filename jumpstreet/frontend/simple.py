@@ -67,7 +67,7 @@ class MainLoop(QObject):
 
     def run(self):
         # -- need to defer import and init due to Qt error
-        from avstack.datastructs import BasicDataBuffer
+        from avstack.datastructs import BasicDataBuffer, DataContainer
         from avstack.modules.tracking.tracks import get_data_container_from_line
 
         self.video_buffer = BasicDataBuffer(max_size=30)

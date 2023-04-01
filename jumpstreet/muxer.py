@@ -19,7 +19,7 @@ class VideoTrackMuxer(BaseClass):
         from avstack.datastructs import BasicDataBuffer, DataContainer
 
         self.DataContainer = DataContainer
-        self.muxed_buffer = BasicDataBuffer(identifier=0, max_size=100)
+        self.muxed_buffer = BasicDataBuffer(max_size=100)
 
     def start_continuous_process_thread(self, execute_rate=100, t_max_delta=0.05):
         """start up a thread for the processing function"""

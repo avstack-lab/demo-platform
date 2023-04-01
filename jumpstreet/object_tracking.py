@@ -7,8 +7,8 @@ import zmq
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
+from avstack.datastructs import DelayManagedDataBuffer
 
-from jumpstreet.buffer import BasicDataBuffer, TimeManagedDataBuffer
 from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
 
 
@@ -61,7 +61,7 @@ class ObjectTracker(BaseClass):
         self.model = init_tracking_model(model)
         self.dt_delay = dt_delay
         self.t_last_emit = None
-        self.detection_buffer = BasicDataBuffer(identifier=0, max_size=30)
+        self.detection_buffer = DelayManagedDataBuffer(dt_delay=dt_delay, max_size=30, method='event-driven')
 
     def poll(self):
         # -- get data from frontend
@@ -71,23 +71,25 @@ class ObjectTracker(BaseClass):
         # -- put detections on the buffer
         self.detection_buffer.push(detections)
 
-        # -- process data
+        # -- process data, if ready
         if self.model is not None:
-            print(detections.frame, detections.timestamp)
-            tracks = self.model(
-                detections,
-                t=detections.timestamp,
-                frame=detections.frame,
-                identifier="tracker-0",
-            )
-            if self.verbose:
-                self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
-            tracks = format_data_container_as_string(tracks).encode()
-        else:
-            tracks = b"No tracking model present"
+            detections_dict = self.detection_buffer.emit_one()
+            if len(detections_dict) > 0:
+                # for now, there can only be one key in the detections
+                assert len(detections_dict) == 1
+                detections = detections_dict[list(detections_dict.keys())[0]]
+                tracks = self.model(
+                    detections,
+                    t=detections.timestamp,
+                    frame=detections.frame,
+                    identifier="tracker-0",
+                )
+                if self.verbose:
+                    self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
+                tracks = format_data_container_as_string(tracks).encode()
 
-        # -- send data at backend
-        self.backend.send_multipart([b"tracks", tracks])
+                # -- send data at backend
+                self.backend.send_multipart([b"tracks", tracks])
 
 
 def main(args):

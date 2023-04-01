@@ -61,7 +61,7 @@ data_broker: $(INSTALL_STAMP)
 
 .PHONY: detection_workers
 detection_workers: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/object_detection.py -n 3 \
+		$(POETRY) run python jumpstreet/object_detection.py -n 2 \
 			--in_host localhost --in_port 5551 \
 			--out_host localhost --out_port 5553 \
 			--model fasterrcnn --verbose
