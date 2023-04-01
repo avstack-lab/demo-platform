@@ -111,8 +111,8 @@ class ObjectDetection(BaseClass):
         else:
             detections = b"No detections yet"
         self.n_imgs += 1
-        if self.verbose:
-            self.print(f"received image - total is {self.n_imgs}", end="\n")
+        # if self.verbose:
+        #     self.print(f"received image - total is {self.n_imgs}", end="\n")
         # -- send data at backend
         self.backend.send_multipart([b"detections", detections])
         # -- say we're ready for more

@@ -104,7 +104,6 @@ class MainLoop(QObject):
                         data.decode(), identifier_override=args.display_cam_id
                     )
                     self.track_buffer.push(track_data_container)
-                    print(track_data_container.timestamp)
 
                 # -- emit an image, subject to a delay factor
                 emit = False

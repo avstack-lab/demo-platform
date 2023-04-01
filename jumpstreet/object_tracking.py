@@ -12,11 +12,11 @@ from avstack.datastructs import DelayManagedDataBuffer
 from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
 
 
-def init_tracking_model(model, framerate=30):
+def init_tracking_model(model):
     if model == "sort":
-        tracker = tracker2d.SortTracker2D(framerate=framerate)
+        tracker = tracker2d.SortTracker2D()
     elif model == "passthrough":
-        tracker = tracker2d.PassthroughTracker2D(framerate=framerate)
+        tracker = tracker2d.PassthroughTracker2D()
     else:
         raise NotImplementedError(model)
     return tracker
