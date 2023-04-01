@@ -62,14 +62,19 @@ class ObjectTracker(BaseClass):
         self.dt_delay = dt_delay
         self.t_last_emit = None
         self.detection_buffer = DelayManagedDataBuffer(dt_delay=dt_delay, max_size=30, method='event-driven')
+        self.poller = zmq.Poller()
+        self.poller.register(self.frontend, zmq.POLLIN)
 
     def poll(self):
-        # -- get data from frontend
-        key, data = self.frontend.recv_multipart()
-        detections = get_data_container_from_line(data.decode())
+        sockets = dict(self.poller.poll())
 
-        # -- put detections on the buffer
-        self.detection_buffer.push(detections)
+        if self.frontend in sockets:
+            # -- get data from frontend
+            key, data = self.frontend.recv_multipart()
+            detections = get_data_container_from_line(data.decode())
+
+            # -- put detections on the buffer
+            self.detection_buffer.push(detections)
 
         # -- process data, if ready
         if self.model is not None:
@@ -78,6 +83,8 @@ class ObjectTracker(BaseClass):
                 # for now, there can only be one key in the detections
                 assert len(detections_dict) == 1
                 detections = detections_dict[list(detections_dict.keys())[0]]
+                if self.verbose:
+                    self.print(f'Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}', end='\n')
                 tracks = self.model(
                     detections,
                     t=detections.timestamp,

@@ -109,18 +109,19 @@ class SensorDataReplayer(BaseClass):
         g = 0
 
         # -- send data
+        ts = self.image_loader.counter / self.rate
+        frame = self.image_loader.counter
         if self.verbose:
-            self.print("sending data...", end="")
+            self.print(f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n")
+
         msg = {
-            "timestamp": self.image_loader.counter / self.rate,
-            "frame": self.image_loader.counter,
+            "timestamp": ts,
+            "frame": frame,
             "channel_order": channel_order,
             "identifier": self.identifier,
             "intrinsics": [a, b, g, u, v],
         }
         self._send_image_data(data, msg)
-        if self.verbose:
-            print("done")
 
         # -- acknowledge
         if self.pattern == zmq.REQ:

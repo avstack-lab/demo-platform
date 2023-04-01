@@ -87,6 +87,8 @@ class ObjectDetection(BaseClass):
             raise NotImplementedError(metadata["msg"]["channel_order"])
         timestamp = metadata["msg"]["timestamp"]
         frame = metadata["msg"]["frame"]
+        if self.verbose:
+            self.print(f'Image frame: {frame:4d}, timestamp: {timestamp:.4f}', end='\n')
         identifier = metadata["msg"]["identifier"]
         a, b, g, u, v = metadata["msg"]["intrinsics"]
         P = np.array([[a, g, u, 0], [0, b, v, 0], [0, 0, 1, 0]])
