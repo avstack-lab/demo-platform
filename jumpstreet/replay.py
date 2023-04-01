@@ -149,9 +149,9 @@ def start_client(task, *args):
     process.start()
 
 
-def main_single(HOST, PORT, identifier, send_rate, send_dir, verbose):
+def main_single(HOST, PORT, identifier, io_threads, send_rate, send_dir, verbose):
     """Runs sending on a single client"""
-    context = SerializingContext()
+    context = SerializingContext(io_threads)
     replayer = SensorDataReplayer(
         context,
         HOST=HOST,
@@ -178,6 +178,7 @@ def main(args):
             args.host,
             args.port,
             args.camera_id,
+            args.io_threads,
             args.send_rate,
             args.send_dir,
             args.verbose,
@@ -202,6 +203,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--send_rate", default=10, type=int, help="Replay rate for sensor data"
+    )
+    parser.add_argument(
+        "--io_threads", default=2, type=int, help="Number of input output threads for zmq context"
     )
     parser.add_argument(
         "--send_dir",

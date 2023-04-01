@@ -156,6 +156,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--display_cam_id", type=str, help="Identifier name of camera image to display"
     )
+    parser.add_argument("--io_threads", type=int, default=2)
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port_tracks", type=int, default=5554)
     parser.add_argument("--port_images", type=int, default=5552)
@@ -165,7 +166,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    context = jumpstreet.context.SerializingContext()
+    context = jumpstreet.context.SerializingContext(args.io_threads)
     main_loop = MainLoop(
         display_cam_id=args.display_cam_id,
         context=context,
