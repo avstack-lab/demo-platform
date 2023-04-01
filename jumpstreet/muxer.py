@@ -9,8 +9,8 @@ class VideoTrackMuxer(BaseClass):
 
     NAME = "muxer-video-track"
 
-    def __init__(self, video_buffer, track_buffer, identifier) -> None:
-        super().__init__(self.NAME, identifier)
+    def __init__(self, video_buffer, track_buffer, identifier, verbose=False) -> None:
+        super().__init__(self.NAME, identifier, verbose=verbose)
         self.video_buffer = video_buffer
         self.track_buffer = track_buffer
         self.ready = False
@@ -98,6 +98,8 @@ class VideoTrackMuxer(BaseClass):
 
         color = (0, 255, 0)
         img = image.data
+        if self.verbose:
+            self.print(f'Frame: {image.frame:3d}: muxing {len(tracks):3d} tracks onto image', end='\n')
         for track in tracks:
             box = track.box
             img = cv2.rectangle(
