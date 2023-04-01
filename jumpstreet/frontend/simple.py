@@ -59,10 +59,6 @@ class MainLoop(QObject):
         self.video_buffer = None
         self.track_buffer = None
         self.muxer = None
-        self.t_first_image = None
-        self.t_last_image = None
-        self.t_first_emit = None
-        self.t_last_emit = None
         self.dt_delay = dt_delay
 
     def run(self):
@@ -73,7 +69,7 @@ class MainLoop(QObject):
         self.video_buffer = BasicDataBuffer(max_size=30)
         self.track_buffer = BasicDataBuffer(max_size=30)
         self.muxer = jumpstreet.muxer.VideoTrackMuxer(
-            self.video_buffer, self.track_buffer, identifier=0
+            self.video_buffer, self.track_buffer, identifier=0, dt_delay=self.dt_delay
         )
 
         # -- put the muxer process on a thread that executes at a certain rate
@@ -106,42 +102,9 @@ class MainLoop(QObject):
                     self.track_buffer.push(track_data_container)
 
                 # -- emit an image, subject to a delay factor
-                emit = False
-                t_now = time.time()  # should we redo time.time later on?
-                if not self.muxer.empty():
-                    t_next_image = self.muxer.top(self.display_cam_id)[
-                        0
-                    ]  # 0 is the identifier for a single camera
-                    if self.t_last_emit is None:
-                        self.t_last_emit = t_now  # say now is the last emit time
-                    if self.t_last_image is None:
-                        # first time, put it on a delay
-                        self.t_first_image = t_next_image
-                        if (t_now - self.t_last_emit) >= self.dt_delay - 1e-6:
-                            emit = True
-                    else:
-                        # every other time, match the time difference and maintain the original delay
-                        # if we instead tried to match the rate between pairs of images, we could end
-                        # up with a gradually increasing global delay factor that would be very bad!
-                        dt_from_first_image = t_next_image - self.t_first_image
-                        dt_from_first_emit = t_now - self.t_first_emit
-                        if dt_from_first_emit >= (
-                            dt_from_first_image + self.dt_delay - 1e-6
-                        ):
-                            emit = True
-                if emit:
-                    image_out = self.muxer.pop(
-                        self.display_cam_id
-                    )  # 0 is the identifier for a single camera
-                    t_now_again = time.time()
-                    if self.t_first_emit is None:
-                        self.t_first_emit = t_now_again
-                    self.dt_last = (
-                        t_now_again - self.t_last_emit
-                    )  # this should be about
-                    self.t_last_emit = t_now_again
-                    self.t_last_image = t_next_image
-                    self.update.emit([image_out.data])
+                image_out = self.muxer.emit_one()
+                if (self.display_cam_id in image_out) and len(image_out[self.display_cam_id]) > 0:
+                    self.update.emit([image_out[self.display_cam_id].data])
 
         except Exception as e:
             logging.warning(e, exc_info=True)

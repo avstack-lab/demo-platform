@@ -9,17 +9,17 @@ class VideoTrackMuxer(BaseClass):
 
     NAME = "muxer-video-track"
 
-    def __init__(self, video_buffer, track_buffer, identifier, verbose=False) -> None:
+    def __init__(self, video_buffer, track_buffer, identifier, dt_delay=0.1, verbose=False) -> None:
         super().__init__(self.NAME, identifier, verbose=verbose)
         self.video_buffer = video_buffer
         self.track_buffer = track_buffer
         self.ready = False
 
         # need to defer import due to Qt import error
-        from avstack.datastructs import BasicDataBuffer, DataContainer
+        from avstack.datastructs import DelayManagedDataBuffer, DataContainer
 
         self.DataContainer = DataContainer
-        self.muxed_buffer = BasicDataBuffer(max_size=100)
+        self.muxed_buffer = DelayManagedDataBuffer(dt_delay=dt_delay, max_size=20, method="real-time")
 
     def start_continuous_process_thread(self, execute_rate=100, t_max_delta=0.05):
         """start up a thread for the processing function"""
@@ -44,6 +44,9 @@ class VideoTrackMuxer(BaseClass):
 
             # -- sleep approximately until the next trigger time
             time.sleep(max(0, execute_dt - (t_now - self.t_last_execute) - 1e-4))
+
+    def emit_one(self):
+        return self.muxed_buffer.emit_one()
 
     def process(self, t_max_delta=0.05):
         """Check the data buffer and add any muxed frames that we can"""
