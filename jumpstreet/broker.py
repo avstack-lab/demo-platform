@@ -176,7 +176,7 @@ def init_broker(broker_type):
 
 
 def main(args):
-    context = SerializingContext()
+    context = SerializingContext(args.io_threads)
     broker = init_broker(args.broker)(
         context,
         FRONTEND=args.frontend,
@@ -200,6 +200,9 @@ if __name__ == "__main__":
         choices=["lb", "lb_with_xsub_extra_xpub"],
         type=str,
         help="Selection of broker type",
+    )
+    parser.add_argument(
+        "--io_threads", type=int, default=3, help="Number of io threads for context"
     )
     parser.add_argument(
         "--frontend", type=int, default=5550, help="Frontend port number (clients)"
