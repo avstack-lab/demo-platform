@@ -61,10 +61,13 @@ data_broker: $(INSTALL_STAMP)
 
 .PHONY: detection_workers
 detection_workers: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/object_detection.py -n 2 \
+		$(POETRY) run python jumpstreet/object_detection.py \
+			--n_image_workers 2 --image_model fasterrcnn --image_dataset coco-person \
+			--n_radar_workers 0 --radar_model none --radar_dataset none \
+			--image_threshold 0.5 --radar_threshold 0.5 \
 			--in_host localhost --in_port 5551 \
 			--out_host localhost --out_port 5553 \
-			--model fasterrcnn --verbose
+			--verbose
 
 .PHONY: tracking_worker
 tracking_worker: $(INSTALL_STAMP)
