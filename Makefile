@@ -68,7 +68,7 @@ detection_workers: $(INSTALL_STAMP)
 
 .PHONY: tracking_worker
 tracking_worker: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/object_tracking.py --model passthrough \
+		$(POETRY) run python jumpstreet/object_tracking.py --model sort \
 			--in_host localhost --in_port 5553 --in_bind \
 			--out_host localhost --out_port 5554 --out_bind \
 			--verbose

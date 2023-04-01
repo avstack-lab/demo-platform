@@ -1,6 +1,6 @@
 import threading
 import time
-
+import logging
 from jumpstreet.utils import BaseClass
 
 
@@ -86,7 +86,11 @@ class VideoTrackMuxer(BaseClass):
                     image = video_bucket.pop()
                     frame = image.frame
                     timestamp = image.timestamp
-                    image_mux = self.mux(image, track_select)
+                    try:
+                        image_mux = self.mux(image, track_select)
+                    except Exception as e:
+                        logging.error(e)
+                        raise e
                     mux_data_container = self.DataContainer(
                         frame, timestamp, image_mux, video_id
                     )
@@ -96,19 +100,26 @@ class VideoTrackMuxer(BaseClass):
         """Mux together an image with track data using opencv"""
         import cv2  # defer import due to conflict with qt
 
-        color = (0, 255, 0)
+        color = (36, 255, 12)
+        thickness = 2
         img = image.data
         if self.verbose:
             self.print(f'Frame: {image.frame:3d}: muxing {len(tracks):3d} tracks onto image', end='\n')
         for track in tracks:
             box = track.box
+            # -- draw rectangle
             img = cv2.rectangle(
                 img,
                 (int(box.xmin), int(box.ymin)),
                 (int(box.xmax), int(box.ymax)),
                 color,
-                2,
+                thickness,
             )
+            # -- draw text information
+            txt = f"{track.obj_type}, ID: {track.ID:3d}"
+            fontscale = 0.9
+            img = cv2.putText(img, txt, (int(box.xmin), int(box.ymin-10)), cv2.FONT_HERSHEY_SIMPLEX, fontscale, color, thickness)
+
         return img
 
     def __getattr__(self, attr):
