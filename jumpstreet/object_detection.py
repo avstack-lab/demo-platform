@@ -11,7 +11,7 @@ import numpy as np
 import zmq
 from avstack.calibration import CameraCalibration
 from avstack.geometry import NominalOriginStandard
-from avstack.modules.perception.detections import format_data_container_as_string
+from avstack.modules.perception.detections import format_data_container_as_string, get_data_container_from_line
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from avstack.sensors import ImageData
 
@@ -174,9 +174,35 @@ class ImageObjectDetector(ObjectDetector):
 
 class RadarObjectDetector(ObjectDetector):
     NAME = "radar-detector"
+    def __init__(
+        self,
+        context,
+        IN_HOST,
+        IN_PORT,
+        OUT_HOST,
+        OUT_PORT,
+        OUT_BIND,
+        identifier,
+        dataset='none',
+        model='passthrough',
+        threshold=0.5,
+        verbose=False,
+    ) -> None:
+        super().__init__(context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, dataset, model, threshold, verbose)
+        self.passthrough = model == 'passthrough'
 
     def set_model(self, dataset, model, threshold):
-        raise NotImplementedError
+        if model == 'passthrough':
+            self.model = lambda x: x  # just a passthrough function
+        else:
+            raise NotImplementedError(model)
+    
+    def detect(self, metadata, array):
+        if self.passthrough:
+            detections = get_data_container_from_line(array)
+        else:
+            raise NotImplementedError
+        return detections
 
 
 def start_worker(task, *args, **kwargs):
