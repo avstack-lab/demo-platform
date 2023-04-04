@@ -80,10 +80,13 @@ tracking_worker: $(INSTALL_STAMP)
 frontend: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/frontend/simple.py \
 			--host localhost --port_tracks 5554 --port_images=5552 \
-			--display_cam_id camera_1
+			--display_cam_id camera_1 \
+			--width 1224 --height 1024
 
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensor.py \
 			--type camera-flir-bfs --host 127.0.0.1 \
-			--backend 5550 --verbose
+			--backend 5550 \
+			--verbose \
+			--resize_factor 4

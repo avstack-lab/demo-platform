@@ -8,6 +8,7 @@ from functools import partial
 
 import numpy as np
 import zmq
+import cv2
 from avstack.calibration import CameraCalibration
 from avstack.geometry import NominalOriginStandard
 from avstack.modules.perception.detections import format_data_container_as_string
@@ -60,6 +61,11 @@ class ObjectDetector(BaseClass):
         # -- get data from frontend
         address, metadata, array = self.frontend.recv_array_multipart(copy=True)
 
+        # -- decompress data (NZ)
+        decoded_frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
+        array = np.array(decoded_frame) # ndarray with d = (h, w, 3)
+        metadata['shape'] = array.shape
+        
         # -- process data
         detections = self.detect(metadata, array)
         if detections is not None:
