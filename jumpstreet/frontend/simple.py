@@ -10,6 +10,7 @@ import logging
 import sys
 import time
 
+import numpy as np
 import zmq
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
@@ -65,6 +66,7 @@ class MainLoop(QObject):
         # -- need to defer import and init due to Qt error
         from avstack.datastructs import BasicDataBuffer, DataContainer
         from avstack.modules.tracking.tracks import get_data_container_from_line
+        from cv2 import IMREAD_COLOR, imdecode
 
         self.video_buffer = BasicDataBuffer(max_size=30)
         self.track_buffer = BasicDataBuffer(max_size=30)
@@ -81,9 +83,14 @@ class MainLoop(QObject):
                 # -- add video data to buffer
                 if self.frontend_images in socks:
                     msg, image = self.frontend_images.recv_array(copy=False)
+
+                    # -- decompress data (NZ)
+                    decoded_frame = imdecode(image, IMREAD_COLOR)
+                    image = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
+
                     timestamp = msg["timestamp"]
                     frame = msg["frame"]
-                    print(f"received frame at time: {timestamp}")
+                    # print(f"received frame at time: {timestamp}")
                     identifier = msg["identifier"]
                     image_data_container = DataContainer(
                         frame=frame,
@@ -92,6 +99,13 @@ class MainLoop(QObject):
                         source_identifier=identifier,
                     )
                     self.video_buffer.push(image_data_container)
+
+                    # -- update display window dimensions to fit image
+                    h, w, _ = image.shape
+                    padding = (
+                        1.1  # accounts for scroll area and padding in Image Viewer
+                    )
+                    display.resize(int(padding * w), int(padding * h))
 
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
@@ -103,7 +117,9 @@ class MainLoop(QObject):
 
                 # -- emit an image, subject to a delay factor
                 image_out = self.muxer.emit_one()
-                if (self.display_cam_id in image_out) and len(image_out[self.display_cam_id]) > 0:
+                if (self.display_cam_id in image_out) and len(
+                    image_out[self.display_cam_id]
+                ) > 0:
                     self.update.emit([image_out[self.display_cam_id].data])
 
         except Exception as e:
@@ -141,8 +157,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     display = jumpstreet.display.StreamThrough(
         main_loop=main_loop,
-        width=args.width,
-        height=args.height,
+        width=args.width / 2,
+        height=args.height / 2,
         identifier=0,
         verbose=args.verbose,
     )

@@ -112,7 +112,9 @@ class SensorDataReplayer(BaseClass):
         ts = self.image_loader.counter / self.rate
         frame = self.image_loader.counter
         if self.verbose:
-            self.print(f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n")
+            self.print(
+                f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n"
+            )
 
         msg = {
             "timestamp": ts,
@@ -205,7 +207,10 @@ if __name__ == "__main__":
         "--send_rate", default=10, type=int, help="Replay rate for sensor data"
     )
     parser.add_argument(
-        "--io_threads", default=2, type=int, help="Number of input output threads for zmq context"
+        "--io_threads",
+        default=2,
+        type=int,
+        help="Number of input output threads for zmq context",
     )
     parser.add_argument(
         "--send_dir",

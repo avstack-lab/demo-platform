@@ -74,6 +74,9 @@ class StreamThrough(Display):
         assert len(image_buffer) == 1, "For now only 1 image at a time"
         self.imageViewer.show_image_from_array(image_buffer[0])
 
+    def resize(self, width, height):
+        self.imageViewer.resize(width, height)
+
 
 class QImageViewer(QMainWindow):
     def __init__(self, width=800, height=800):
@@ -259,6 +262,8 @@ class QImageViewer(QMainWindow):
 
         self.zoomInAct.setEnabled(self.scaleFactor < 3.0)
         self.zoomOutAct.setEnabled(self.scaleFactor > 0.333)
+        # self.zoomInAct.setEnabled(True) # new, doesn't seem to work
+        # self.zoomOutAct.setEnabled(True) # new, doesn't seem to work
 
     def adjustScrollBar(self, scrollBar, factor):
         scrollBar.setValue(

@@ -3,9 +3,10 @@
 import argparse
 import logging
 import multiprocessing
-from time import sleep
 from functools import partial
+from time import sleep
 
+import cv2
 import numpy as np
 import zmq
 from avstack.calibration import CameraCalibration
@@ -60,6 +61,11 @@ class ObjectDetector(BaseClass):
         # -- get data from frontend
         address, metadata, array = self.frontend.recv_array_multipart(copy=True)
 
+        # -- decompress data (NZ)
+        decoded_frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
+        array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
+        metadata["shape"] = array.shape
+
         # -- process data
         detections = self.detect(metadata, array)
         if detections is not None:
@@ -74,7 +80,7 @@ class ObjectDetector(BaseClass):
 
     def set_model(self):
         raise NotImplementedError
-    
+
     def detect(self):
         raise NotImplementedError
 
@@ -91,12 +97,24 @@ class ImageObjectDetector(ObjectDetector):
         OUT_PORT,
         OUT_BIND,
         identifier,
-        dataset='coco-person',
-        model='fasterrcnn',
+        dataset="coco-person",
+        model="fasterrcnn",
         threshold=0.5,
         verbose=False,
     ) -> None:
-        super().__init__(context, IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, identifier, dataset, model, threshold, verbose)
+        super().__init__(
+            context,
+            IN_HOST,
+            IN_PORT,
+            OUT_HOST,
+            OUT_PORT,
+            OUT_BIND,
+            identifier,
+            dataset,
+            model,
+            threshold,
+            verbose,
+        )
 
     def set_model(self, dataset, model, threshold):
         # -- set up perception model
@@ -117,7 +135,7 @@ class ImageObjectDetector(ObjectDetector):
             self.model = None
         else:
             raise NotImplementedError(model)
-    
+
     def detect(self, metadata, array):
         if self.model is not None:
             if metadata["msg"]["channel_order"].lower() == "rgb":
@@ -129,7 +147,9 @@ class ImageObjectDetector(ObjectDetector):
             timestamp = metadata["msg"]["timestamp"]
             frame = metadata["msg"]["frame"]
             if self.verbose:
-                self.print(f'Image frame: {frame:4d}, timestamp: {timestamp:.4f}', end='\n')
+                self.print(
+                    f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}", end="\n"
+                )
             identifier = metadata["msg"]["identifier"]
             a, b, g, u, v = metadata["msg"]["intrinsics"]
             P = np.array([[a, g, u, 0], [0, b, v, 0], [0, 0, 1, 0]])
@@ -142,7 +162,7 @@ class ImageObjectDetector(ObjectDetector):
                 data=np.reshape(array, metadata["shape"]),
                 calibration=calib,
             )
-            
+
             # -- process data
             detections = self.model(
                 image, identifier=metadata["msg"]["identifier"], is_rgb=is_rgb
@@ -150,10 +170,11 @@ class ImageObjectDetector(ObjectDetector):
         else:
             detections = None
         return detections
-    
+
 
 class RadarObjectDetector(ObjectDetector):
     NAME = "radar-detector"
+
     def set_model(self, dataset, model, threshold):
         raise NotImplementedError
 
@@ -167,14 +188,23 @@ def start_worker(task, *args, **kwargs):
 
 
 def main_single(
-    IN_HOST, IN_PORT, OUT_HOST, OUT_PORT, OUT_BIND, 
-    worker_type, identifier, dataset, model, threshold, verbose
+    IN_HOST,
+    IN_PORT,
+    OUT_HOST,
+    OUT_PORT,
+    OUT_BIND,
+    worker_type,
+    identifier,
+    dataset,
+    model,
+    threshold,
+    verbose,
 ):
     """Runs polling on a single worker"""
     context = SerializingContext()
-    if worker_type == 'image':
+    if worker_type == "image":
         worker = ImageObjectDetector
-    elif worker_type == 'radar':
+    elif worker_type == "radar":
         worker = RadarObjectDetector
     else:
         raise NotImplementedError(worker_type)
@@ -203,13 +233,20 @@ def main_single(
 def main(args):
     """Run object detection workers"""
     procs = []
-    main_partial = partial(main_single, args.in_host, args.in_port, args.out_host, args.out_port, args.out_bind)
+    main_partial = partial(
+        main_single,
+        args.in_host,
+        args.in_port,
+        args.out_host,
+        args.out_port,
+        args.out_bind,
+    )
 
     # -- start image workers
     for i in range(args.n_image_workers):
         proc = start_worker(
             main_partial,
-            worker_type='image',
+            worker_type="image",
             identifier=i,
             dataset=args.image_dataset,
             model=args.image_model,
@@ -222,7 +259,7 @@ def main(args):
     for i in range(args.n_radar_workers):
         proc = start_worker(
             main_partial,
-            worker_type='radar',
+            worker_type="radar",
             identifier=i,
             dataset=args.radar_dataset,
             model=args.radar_model,
@@ -252,7 +289,7 @@ if __name__ == "__main__":
         "--n_image_workers",
         type=int,
         default=2,
-        help="Number of image detection workers"
+        help="Number of image detection workers",
     )
     parser.add_argument(
         "--image_model",
@@ -262,22 +299,22 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--image_dataset",
-        choices=['coco-person'],
-        default='coco-person',
-        help="Perception dataset to base model on"
+        choices=["coco-person"],
+        default="coco-person",
+        help="Perception dataset to base model on",
     )
     parser.add_argument(
         "--image_threshold",
         type=float,
         default=0.5,
-        help="Confidence score threshold for image perception"
+        help="Confidence score threshold for image perception",
     )
     # -- radar model parameters
     parser.add_argument(
         "--n_radar_workers",
         type=int,
         default=0,
-        help="Number of radar detection workers"
+        help="Number of radar detection workers",
     )
     parser.add_argument(
         "--radar_model",
@@ -289,13 +326,13 @@ if __name__ == "__main__":
         "--radar_dataset",
         choices=["none"],
         default="none",
-        help="Radar perception dataset to base model on"
+        help="Radar perception dataset to base model on",
     )
     parser.add_argument(
         "--radar_threshold",
         type=float,
         default=0.5,
-        help="Confidence score threshold for radar perception"
+        help="Confidence score threshold for radar perception",
     )
 
     # -- host/port information

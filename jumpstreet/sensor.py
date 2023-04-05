@@ -7,6 +7,7 @@ Date: March 2023
 """
 
 import argparse
+import sys
 import time
 
 import cv2
@@ -62,6 +63,7 @@ class Sensor(BaseClass):
         host,
         backend,
         backend_other,
+        resize_factor,
         verbose=False,
         *args,
         **kwargs,
@@ -84,6 +86,7 @@ class Sensor(BaseClass):
                 self, context, "backend_other", zmq.PUB, host, backend_other, BIND=False
             )
 
+        self.resize_factor = resize_factor
         self.verbose = verbose
         self.handle = None
         self.streaming = False
@@ -123,9 +126,8 @@ class Sensor(BaseClass):
 
             self.image_dimensions = (cam_height_px, cam_width_px)
 
-            # with self.handle:
-            #     pass
-            # flir_capture(self.handle, self.image_dimensions)
+            #! Method should end here
+            #### --------------------------------------------------------------
 
             # TODO Fill this in later....
             a = 700  # this is bogus...fix later...f*mx
@@ -138,43 +140,58 @@ class Sensor(BaseClass):
                 "frame": 0,
                 "identifier": self.identifier,
                 "intrinsics": [a, b, g, u, v],
+                "channel_order": "rgb",
             }
 
-            #! Method should end here
             self.handle.BeginAcquisition()
             t0 = 0
-            counter = 0
+            frame_counter = 0
             while True:
 
                 ptr = self.handle.GetNextImage()
+                if ptr.IsIncomplete():
+                    continue  # discard image
 
-                timetamp = float(ptr.GetTimeStamp()) * (10**-9)
-                if counter == 0:
-                    t0 = timetamp
-                msg["timestamp"] = round(timetamp - t0, 9)
-                msg["frame"] = counter
+                now = time.time()  # float(ptr.GetTimeStamp())
+                if frame_counter == 0:
+                    t0 = now
+                timestamp = round(now - t0, 9)  # * 1e-9 # ms
+                msg["timestamp"] = timestamp
+                msg["frame"] = frame_counter
 
+                # -- Version 1: successfully gets colored image as ndarray
                 arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
                     self.image_dimensions
                 )
-                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray
-                if not img.flags["C_CONTIGUOUS"]:
-                    img = np.ascontiguousarray(img)
-                # msg = 'sample'
+                img = cv2.cvtColor(
+                    arr, cv2.COLOR_BayerBG2BGR
+                )  # np.ndarray with d = (h, w, 3)
 
-                # send_array_pubsub(self.backend, msg, img)
-                self.backend.send_array(img, msg)
+                # -- resize image before compression
+                new_h = int(img.shape[0] / self.resize_factor)
+                new_w = int(img.shape[1] / self.resize_factor)
+                img_resized = cv2.resize(
+                    img, (new_w, new_h), interpolation=cv2.INTER_AREA
+                )
+                img = img_resized
+
+                # -- image compression
+                success, result = cv2.imencode(
+                    ".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80]
+                )
+                if not success:
+                    raise RuntimeError("Error compressing image")
+                compressed_frame = np.array(result)
+                img = np.ascontiguousarray(compressed_frame)
+
+                self.backend.send_array(img, msg, False)
                 if self.verbose:
-                    self.print("Sent image", end="\n")
-
-                # image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
-                # cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
-                # key = cv2.waitKey(30)
-                # if key == ord(STOP_KEY):
-                #     print('Received STOP_KEY signal')
-                #     ptr.Release()
-                #     self.handle.EndAcquisition()
-                #     break
+                    self.print(
+                        f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
+                        end="\n",
+                    )
+                ptr.Release()
+                frame_counter += 1
 
         elif self.type == "camera-rpi":
             pass
@@ -185,33 +202,58 @@ class Sensor(BaseClass):
         print("entered start_capture() ")
 
         if self.type == "camera-flir-bfs":
-            image_dimensions = self.image_dimensions
-            self.handle.BeginAcquisition()
+            a = 700  # this is bogus...fix later...f*mx
+            b = 700  # this is bofus...fix later...f*my
+            u = self.image_dimensions[1] / 2
+            v = self.image_dimensions[0] / 2
+            g = 0
+            msg = {
+                "timestamp": 0.0,
+                "frame": 0,
+                "identifier": self.identifier,
+                "intrinsics": [a, b, g, u, v],
+                "channel_order": "rgb",
+                "compression": "jpeg",
+            }
 
-            for i in range(50):
+            #! Method should end here
+            self.handle.BeginAcquisition()
+            t0 = 0
+            frame_counter = 0
+            while True:
+
                 ptr = self.handle.GetNextImage()
+
+                timestamp = float(ptr.GetTimeStamp()) * 1e-9  # ms
+                if frame_counter == 0:
+                    t0 = timestamp
+                msg["timestamp"] = round(timestamp - t0, 9)
+                print(timestamp)
+                msg["frame"] = frame_counter
+
                 arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
-                    image_dimensions
+                    self.image_dimensions
                 )
                 img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray
-                if not img.flags["C_CONTIGUOUS"]:
-                    img = np.ascontiguousarray(img)
-                msg = "sample"
+                ret, jpeg_buffer = cv2.imencode(
+                    ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                )
+                if not ret:
+                    raise RuntimeError("Error compressing image")
+                compressed_frame = np.array(jpeg_buffer)
+                img = np.ascontiguousarray(compressed_frame)
+
+                # if not img.flags["C_CONTIGUOUS"]:
+                #     img = np.ascontiguousarray(img)
 
                 self.backend.send_array(img, msg)
+                if self.verbose:
+                    self.print(
+                        f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
+                        end="\n",
+                    )
 
-                image_show = cv2.resize(img, None, fx=0.25, fy=0.25)
-                cv2.imshow(f"Press {STOP_KEY} to quit", image_show)
-                key = cv2.waitKey(30)
-                if key == ord(STOP_KEY):
-                    print("Received STOP_KEY signal")
-                    ptr.Release()
-                    self.handle.EndAcquisition()
-                    break
-                ptr.Release()
-            self.handle.EndAcquisition()
-            self.handle.DeInit()
-            # del self.handle
+                frame_counter += 1
 
         elif self.type == "camera-rpi":
             pass
@@ -237,13 +279,14 @@ def main(args, configs):
         args.host,
         args.backend,
         args.backend_other,
+        args.resize_factor,
         verbose=args.verbose,
     )
 
     sensor.initialize()
     print("Sensor successfully initialized in sensor.py")
 
-    # sensor.start_capture()
+    sensor.start_capture()
     # print("foo")
 
 
@@ -258,7 +301,7 @@ if __name__ == "__main__":
             "ip": "192.168.1.1",
             "width_px": "2448",
             "height_px": "2048",
-            "fps": "10",
+            "fps": "20",
             "frame_size_bytes": "307200",
         },
         "camera_2": {
@@ -272,14 +315,14 @@ if __name__ == "__main__":
             "frame_size_bytes": "307200",
         },
         "camera_3": {
-            "name": "camera_3",
-            "type": "Raspberry-Pi",
-            "serial": "22395953",
+            "name": "camera_jackwhite",
+            "type": "camera-rpi",
+            "serial": "NA",
             "ip": "192.168.1.2",
-            "width_px": "2448",
-            "height_px": "2048",
-            "fps": "10",
-            "frame_size_bytes": "307200",
+            "width_px": "640",
+            "height_px": "480",
+            "fps": "25",
+            "frame_size_bytes": "NA",
         },
     }
 
@@ -303,6 +346,12 @@ if __name__ == "__main__":
         help="Extra backend port (used only in select classes)",
     )
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--resize_factor",
+        choices=[1, 2, 4, 8],
+        type=int,
+        help="Resize image by a factor of 1/x",
+    )
 
     args = parser.parse_args()
 
