@@ -90,7 +90,7 @@ class MainLoop(QObject):
                 
                     timestamp = msg["timestamp"]
                     frame = msg["frame"]
-                    print(f"received frame at time: {timestamp}")
+                    # print(f"received frame at time: {timestamp}")
                     identifier = msg["identifier"]
                     image_data_container = DataContainer(
                         frame=frame,

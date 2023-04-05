@@ -152,12 +152,11 @@ class Sensor(BaseClass):
                 if ptr.IsIncomplete():
                     continue # discard image
 
-                ts_raw = float(ptr.GetTimeStamp())
-                timestamp = ts_raw * 1e-9 # ms
+                now = time.time()  # float(ptr.GetTimeStamp())
                 if frame_counter == 0:
-                    t0 = timestamp
-                msg["timestamp"] = round(timestamp - t0, 9)
-                # print(ts_raw)
+                    t0 = now
+                timestamp = round(now - t0, 9)  #* 1e-9 # ms
+                msg["timestamp"] = timestamp
                 msg["frame"] = frame_counter
 
                 # -- Version 1: successfully gets colored image as ndarray
@@ -177,8 +176,6 @@ class Sensor(BaseClass):
                 compressed_frame = np.array(result)
                 img = np.ascontiguousarray(compressed_frame)
              
-
-
                 self.backend.send_array(img, msg, False)
                 if self.verbose:
                     self.print(f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}", end="\n")
@@ -289,7 +286,7 @@ if __name__ == "__main__":
             "width_px": "2448",
             "height_px": "2048",
             "fps": "20",
-            "frame_size_bytes": "307200",
+            "frame_size_bytes": "307200"
         },
         "camera_2": {
             "name": "camera_2",
@@ -299,17 +296,17 @@ if __name__ == "__main__":
             "width_px": "2448",
             "height_px": "2048",
             "fps": "10",
-            "frame_size_bytes": "307200",
+            "frame_size_bytes": "307200"
         },
         "camera_3": {
-            "name": "camera_3",
-            "type": "Raspberry-Pi",
-            "serial": "22395953",
+            "name": "camera_jackwhite",
+            "type": "camera-rpi",
+            "serial": "NA",
             "ip": "192.168.1.2",
-            "width_px": "2448",
-            "height_px": "2048",
-            "fps": "10",
-            "frame_size_bytes": "307200",
+            "width_px": "640",
+            "height_px": "480",
+            "fps": "25",
+            "frame_size_bytes": "NA"
         },
     }
 

@@ -48,8 +48,8 @@ class RaspberryPi(Sensor):
         self.image_dimensions = (cam_height_px, cam_width_px)
 
         ## -- initialize Raspberry Pi camera -- ##
-        self.handle = picamera.PiCamera()
-        # self.handle = picamera.PiCamera(hostname=cam_ip)
+        # self.handle = picamera.PiCamera()
+        self.handle = picamera.PiCamera(hostname=cam_ip) 
         # self.handle = picamera.PiCamera(camera_num=cam_serial)
         self.handle.resolution = (cam_width_px, cam_height_px)
         self.handle.framerate = cam_fps
@@ -136,6 +136,18 @@ if __name__ == "__main__":
     # TODO Add code to parse command line arguments, similar to the FlirBfs implementation
     # TODO Add code to initialize the Raspberry Pi camera, similar to the FlirBfs implementation
     # TODO Add code to start capturing data from the Raspberry Pi camera, similar to the FlirBfs implementation
+    
+    configs = {
+        "name": "camera_jackwhite",
+        "type": "camera-rpi",
+        "serial": "NA",
+        "ip": "192.168.1.2",
+        "width_px": "640",
+        "height_px": "480",
+        "fps": "25",
+        "frame_size_bytes": "NA"
+    }
+    
     args = {}
     main(args)
     pass
