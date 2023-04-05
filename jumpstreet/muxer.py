@@ -1,6 +1,7 @@
+import logging
 import threading
 import time
-import logging
+
 from jumpstreet.utils import BaseClass
 
 
@@ -9,17 +10,21 @@ class VideoTrackMuxer(BaseClass):
 
     NAME = "muxer-video-track"
 
-    def __init__(self, video_buffer, track_buffer, identifier, dt_delay=0.1, verbose=False) -> None:
+    def __init__(
+        self, video_buffer, track_buffer, identifier, dt_delay=0.1, verbose=False
+    ) -> None:
         super().__init__(self.NAME, identifier, verbose=verbose)
         self.video_buffer = video_buffer
         self.track_buffer = track_buffer
         self.ready = False
 
         # need to defer import due to Qt import error
-        from avstack.datastructs import DelayManagedDataBuffer, DataContainer
+        from avstack.datastructs import DataContainer, DelayManagedDataBuffer
 
         self.DataContainer = DataContainer
-        self.muxed_buffer = DelayManagedDataBuffer(dt_delay=dt_delay, max_size=20, method="real-time")
+        self.muxed_buffer = DelayManagedDataBuffer(
+            dt_delay=dt_delay, max_size=20, method="real-time"
+        )
 
     def start_continuous_process_thread(self, execute_rate=100, t_max_delta=0.05):
         """start up a thread for the processing function"""
@@ -107,7 +112,10 @@ class VideoTrackMuxer(BaseClass):
         thickness = 2
         img = image.data
         if self.verbose:
-            self.print(f'Frame: {image.frame:3d}: muxing {len(tracks):3d} tracks onto image', end='\n')
+            self.print(
+                f"Frame: {image.frame:3d}: muxing {len(tracks):3d} tracks onto image",
+                end="\n",
+            )
         for track in tracks:
             box = track.box
             # -- draw rectangle
@@ -121,7 +129,15 @@ class VideoTrackMuxer(BaseClass):
             # -- draw text information
             txt = f"{track.obj_type}, ID: {track.ID:3d}"
             fontscale = 0.9
-            img = cv2.putText(img, txt, (int(box.xmin), int(box.ymin-10)), cv2.FONT_HERSHEY_SIMPLEX, fontscale, color, thickness)
+            img = cv2.putText(
+                img,
+                txt,
+                (int(box.xmin), int(box.ymin - 10)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                fontscale,
+                color,
+                thickness,
+            )
 
         return img
 

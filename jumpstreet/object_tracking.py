@@ -4,10 +4,10 @@ import argparse
 import logging
 
 import zmq
+from avstack.datastructs import DelayManagedDataBuffer
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
-from avstack.datastructs import DelayManagedDataBuffer
 
 from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
 
@@ -61,7 +61,9 @@ class ObjectTracker(BaseClass):
         self.model = init_tracking_model(model)
         self.dt_delay = dt_delay
         self.t_last_emit = None
-        self.detection_buffer = DelayManagedDataBuffer(dt_delay=dt_delay, max_size=30, method='event-driven')
+        self.detection_buffer = DelayManagedDataBuffer(
+            dt_delay=dt_delay, max_size=30, method="event-driven"
+        )
         self.poller = zmq.Poller()
         self.poller.register(self.frontend, zmq.POLLIN)
 
@@ -84,7 +86,10 @@ class ObjectTracker(BaseClass):
                 assert len(detections_dict) == 1
                 detections = detections_dict[list(detections_dict.keys())[0]]
                 if self.verbose:
-                    self.print(f'Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}', end='\n')
+                    self.print(
+                        f"Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}",
+                        end="\n",
+                    )
                 tracks = self.model(
                     detections,
                     t=detections.timestamp,

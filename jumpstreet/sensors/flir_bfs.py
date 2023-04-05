@@ -1,10 +1,9 @@
-import numpy as np
-import zmq
 import cv2
+import numpy as np
 import PySpin
-
+import zmq
 from context import SerializingContext
-from sensor import Sensor, interpolate_jpg, compress_to_jpg
+from sensor import Sensor, compress_to_jpg, interpolate_jpg
 
 
 """
@@ -32,7 +31,7 @@ Instantiate as:
 """
 
 DEFAULT_BACKEND_PORT = 6551
-STOP_KEY = 'q'
+STOP_KEY = "q"
 
 
 class FlirBfs(Sensor):
@@ -40,21 +39,40 @@ class FlirBfs(Sensor):
     FLIR BFS camera implementation of Sensor class.
     """
 
-    def __init__(self, context, identifier, configs, host="127.0.0.1", backend=DEFAULT_BACKEND_PORT, 
-                 backend_other=None, verbose=False, *args, **kwargs):
-        super().__init__(context=context, identifier=identifier, type="camera-flir-bfs", configs=configs, 
-                         host=host, backend=backend, backend_other=backend_other, verbose=verbose, *args, **kwargs)
+    def __init__(
+        self,
+        context,
+        identifier,
+        configs,
+        host="127.0.0.1",
+        backend=DEFAULT_BACKEND_PORT,
+        backend_other=None,
+        verbose=False,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(
+            context=context,
+            identifier=identifier,
+            type="camera-flir-bfs",
+            configs=configs,
+            host=host,
+            backend=backend,
+            backend_other=backend_other,
+            verbose=verbose,
+            *args,
+            **kwargs,
+        )
 
         self.handle = None
         self.image_dimensions = None
-
 
     def initialize(self):
         """
         Initialize the FLIR BFS camera by setting properties and connecting to the camera handle.
         """
 
-        super().initialize() # calls Sensor.initialize(), may throw a TypeError
+        super().initialize()  # calls Sensor.initialize(), may throw a TypeError
 
         ## -- extract camera properties from configs -- ##
         try:
@@ -85,11 +103,11 @@ class FlirBfs(Sensor):
         self.handle.Width.SetValue(cam_width_px)
         self.handle.Height.SetValue(cam_height_px)
         self.handle.AcquisitionFrameRateEnable.SetValue(True)
-        self.handle.AcquisitionFrameRate.SetValue(cam_fps) # Max is 23 fps for FLIR BFS
+        self.handle.AcquisitionFrameRate.SetValue(cam_fps)  # Max is 23 fps for FLIR BFS
 
-        ''' ------------------------------------------------------------
+        """ ------------------------------------------------------------
         FUNCTION SHOULD END HERE
-        ------------------------------------------------------------ '''
+        ------------------------------------------------------------ """
 
         ## -- intrinsics -- ##
         a = 700  # this is bogus...fix later...f*mx
@@ -114,31 +132,39 @@ class FlirBfs(Sensor):
             ## -- get image valid image pointer -- ##
             ptr = self.handle.GetNextImage()
             if ptr.IsIncomplete():
-                continue # discard image
+                continue  # discard image
 
             ## -- get timestamp and frame number -- ##
             ts_raw = float(ptr.GetTimeStamp())
-            timestamp = ts_raw * 1e-9 # ms
+            timestamp = ts_raw * 1e-9  # ms
             if frame_counter == 0:
                 t0 = timestamp
             msg["timestamp"] = round(timestamp - t0, 9)
             msg["frame"] = frame_counter
 
             # -- convert image to numpy array and process -- ##
-            arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(self.image_dimensions)
-            img_raw = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray with d = (h, w, 3)
-            img_interpolated = interpolate_jpg(img_raw, self.resize_factor) 
-            img_compressed = compress_to_jpg(img_interpolated, 80) # TODO change 80 to self.quality  
+            arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
+                self.image_dimensions
+            )
+            img_raw = cv2.cvtColor(
+                arr, cv2.COLOR_BayerBG2BGR
+            )  # np.ndarray with d = (h, w, 3)
+            img_interpolated = interpolate_jpg(img_raw, self.resize_factor)
+            img_compressed = compress_to_jpg(
+                img_interpolated, 80
+            )  # TODO change 80 to self.quality
             img = np.ascontiguousarray(img_compressed)
-        
+
             ## -- publish image with ZMQ -- ##
             self.backend.send_array(img, msg, False)
             if self.verbose:
-                self.print(f"sent data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}", end="\n")
+                self.print(
+                    f"sent data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
+                    end="\n",
+                )
 
             ptr.Release()
             frame_counter += 1
-
 
     def start_capture(self):
         """
@@ -171,27 +197,36 @@ class FlirBfs(Sensor):
             ## -- get image valid image pointer -- ##
             ptr = self.handle.GetNextImage()
             if ptr.IsIncomplete():
-                continue # discard image
+                continue  # discard image
 
             ## -- get timestamp and frame number -- ##
             ts_raw = float(ptr.GetTimeStamp())
-            timestamp = ts_raw * 1e-9 # ms
+            timestamp = ts_raw * 1e-9  # ms
             if frame_counter == 0:
                 t0 = timestamp
             msg["timestamp"] = round(timestamp - t0, 9)
             msg["frame"] = frame_counter
 
             # -- convert image to numpy array and process -- ##
-            arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(self.image_dimensions)
-            img_raw = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray with d = (h, w, 3)
-            img_interpolated = interpolate_jpg(img_raw, self.resize_factor) 
-            img_compressed = compress_to_jpg(img_interpolated, 80) # TODO change 80 to self.quality  
+            arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
+                self.image_dimensions
+            )
+            img_raw = cv2.cvtColor(
+                arr, cv2.COLOR_BayerBG2BGR
+            )  # np.ndarray with d = (h, w, 3)
+            img_interpolated = interpolate_jpg(img_raw, self.resize_factor)
+            img_compressed = compress_to_jpg(
+                img_interpolated, 80
+            )  # TODO change 80 to self.quality
             img = np.ascontiguousarray(img_compressed)
-        
+
             ## -- publish image with ZMQ -- ##
             self.backend.send_array(img, msg, False)
             if self.verbose:
-                self.print(f"sent data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}", end="\n")
+                self.print(
+                    f"sent data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
+                    end="\n",
+                )
 
             ptr.Release()
             frame_counter += 1
@@ -199,22 +234,16 @@ class FlirBfs(Sensor):
         self.handle.EndAcquisition()
         self.handle.DeInit()
 
-
     def stop_capture(self):
         raise NotImplementedError
-
 
     def reconfigure(self, configs):
         raise NotImplementedError
 
 
-
-
 def main(args):
     # TODO implement main method to take args from controller
     pass
-
-
 
 
 if __name__ == "__main__":

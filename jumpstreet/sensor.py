@@ -7,6 +7,7 @@ Date: March 2023
 """
 
 import argparse
+import sys
 import time
 
 import cv2
@@ -15,7 +16,7 @@ import PySpin
 import zmq
 from context import SerializingContext
 from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
-import sys
+
 
 STOP_KEY = "q"
 DEFAULT_BACKEND_PORT = 6551
@@ -127,7 +128,7 @@ class Sensor(BaseClass):
 
             #! Method should end here
             #### --------------------------------------------------------------
-        
+
             # TODO Fill this in later....
             a = 700  # this is bogus...fix later...f*mx
             b = 700  # this is bofus...fix later...f*my
@@ -142,7 +143,6 @@ class Sensor(BaseClass):
                 "channel_order": "rgb",
             }
 
-            
             self.handle.BeginAcquisition()
             t0 = 0
             frame_counter = 0
@@ -150,35 +150,46 @@ class Sensor(BaseClass):
 
                 ptr = self.handle.GetNextImage()
                 if ptr.IsIncomplete():
-                    continue # discard image
+                    continue  # discard image
 
                 now = time.time()  # float(ptr.GetTimeStamp())
                 if frame_counter == 0:
                     t0 = now
-                timestamp = round(now - t0, 9)  #* 1e-9 # ms
+                timestamp = round(now - t0, 9)  # * 1e-9 # ms
                 msg["timestamp"] = timestamp
                 msg["frame"] = frame_counter
 
                 # -- Version 1: successfully gets colored image as ndarray
-                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(self.image_dimensions)
-                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray with d = (h, w, 3)
- 
+                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
+                    self.image_dimensions
+                )
+                img = cv2.cvtColor(
+                    arr, cv2.COLOR_BayerBG2BGR
+                )  # np.ndarray with d = (h, w, 3)
+
                 # -- resize image before compression
                 new_h = int(img.shape[0] / self.resize_factor)
                 new_w = int(img.shape[1] / self.resize_factor)
-                img_resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                img_resized = cv2.resize(
+                    img, (new_w, new_h), interpolation=cv2.INTER_AREA
+                )
                 img = img_resized
 
                 # -- image compression
-                success, result = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                success, result = cv2.imencode(
+                    ".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80]
+                )
                 if not success:
                     raise RuntimeError("Error compressing image")
                 compressed_frame = np.array(result)
                 img = np.ascontiguousarray(compressed_frame)
-             
+
                 self.backend.send_array(img, msg, False)
                 if self.verbose:
-                    self.print(f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}", end="\n")
+                    self.print(
+                        f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
+                        end="\n",
+                    )
                 ptr.Release()
                 frame_counter += 1
 
@@ -202,7 +213,7 @@ class Sensor(BaseClass):
                 "identifier": self.identifier,
                 "intrinsics": [a, b, g, u, v],
                 "channel_order": "rgb",
-                "compression": "jpeg"
+                "compression": "jpeg",
             }
 
             #! Method should end here
@@ -213,7 +224,7 @@ class Sensor(BaseClass):
 
                 ptr = self.handle.GetNextImage()
 
-                timestamp = float(ptr.GetTimeStamp()) * 1e-9 # ms
+                timestamp = float(ptr.GetTimeStamp()) * 1e-9  # ms
                 if frame_counter == 0:
                     t0 = timestamp
                 msg["timestamp"] = round(timestamp - t0, 9)
@@ -224,9 +235,11 @@ class Sensor(BaseClass):
                     self.image_dimensions
                 )
                 img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray
-                ret, jpeg_buffer = cv2.imencode('.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+                ret, jpeg_buffer = cv2.imencode(
+                    ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                )
                 if not ret:
-                        raise RuntimeError("Error compressing image")
+                    raise RuntimeError("Error compressing image")
                 compressed_frame = np.array(jpeg_buffer)
                 img = np.ascontiguousarray(compressed_frame)
 
@@ -235,7 +248,10 @@ class Sensor(BaseClass):
 
                 self.backend.send_array(img, msg)
                 if self.verbose:
-                    self.print(f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}", end="\n")
+                    self.print(
+                        f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
+                        end="\n",
+                    )
 
                 frame_counter += 1
 
@@ -286,7 +302,7 @@ if __name__ == "__main__":
             "width_px": "2448",
             "height_px": "2048",
             "fps": "20",
-            "frame_size_bytes": "307200"
+            "frame_size_bytes": "307200",
         },
         "camera_2": {
             "name": "camera_2",
@@ -296,7 +312,7 @@ if __name__ == "__main__":
             "width_px": "2448",
             "height_px": "2048",
             "fps": "10",
-            "frame_size_bytes": "307200"
+            "frame_size_bytes": "307200",
         },
         "camera_3": {
             "name": "camera_jackwhite",
@@ -306,7 +322,7 @@ if __name__ == "__main__":
             "width_px": "640",
             "height_px": "480",
             "fps": "25",
-            "frame_size_bytes": "NA"
+            "frame_size_bytes": "NA",
         },
     }
 
@@ -330,10 +346,12 @@ if __name__ == "__main__":
         help="Extra backend port (used only in select classes)",
     )
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--resize_factor", 
-                        choices = [1, 2, 4, 8],
-                        type=int,
-                        help="Resize image by a factor of 1/x")
+    parser.add_argument(
+        "--resize_factor",
+        choices=[1, 2, 4, 8],
+        type=int,
+        help="Resize image by a factor of 1/x",
+    )
 
     args = parser.parse_args()
 
