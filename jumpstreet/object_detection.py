@@ -53,7 +53,7 @@ class ObjectDetector(BaseClass):
         self.print("initialized perception model!", end="\n")
 
         # -- ready to go (need this!)
-        self.frontend.send(b"READY")
+        self.frontend.send(b"READY-camera")
         self.print(f"ready to start", end="\n")
 
     def poll(self):
@@ -79,7 +79,7 @@ class ObjectDetector(BaseClass):
         # -- send data at backend
         self.backend.send_multipart([b"detections", detections])
         # -- say we're ready for more
-        self.frontend.send_multipart([address, b"", b"OK"])
+        self.frontend.send_multipart([address, b"", b"OK-camera"])
 
     def set_model(self):
         raise NotImplementedError

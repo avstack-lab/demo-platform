@@ -114,8 +114,8 @@ class LoadBalancingBrokerXSub(BaseClass):
         self.backend_xpub = init_some_end(
             self, context, "backend-xpub", zmq.XPUB, "*", BACKEND_OTHER, BIND=True
         )
-        self.backend_ready = False
-        self.workers = []
+        self.backend_ready = {"camera":False, "radar":False}
+        self.workers = {"camera":[], "radar":[]}
         self.print(f"initializing poller...", end="")
         self.poller = zmq.Poller()
         self.poller.register(self.backend, zmq.POLLIN)
@@ -129,34 +129,48 @@ class LoadBalancingBrokerXSub(BaseClass):
         # --- handle worker activity on the backend
         if self.backend in socks:
             request = self.backend.recv_multipart()
-            worker, empty, client = request[:3]
-            self.workers.append(worker)
-            if self.workers and not self.backend_ready:
-                self.backend_ready = True
+            worker, empty, client = request[:3]  # TODO: add worker_type
+            print(client)
+            worker_type = client.decode().split('-')[1]
+            self.workers[worker_type].append(worker)
+            for k in self.workers:
+                if self.workers[k] and not self.backend_ready[k]:
+                    self.backend_ready[k] = True
 
         # --- handle incoming data on the frontend
         if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
             msg, array = self.frontend.recv_array(copy=False)
 
             # --- handle different data types
+            pass_data = False
             if "camera" in msg["identifier"]:
-                if self.verbose:
-                    self.print(f"received image of size {array.shape}", end="\n")
-
-                #  -- Route data to last-used worker, if ready
-                if self.backend_ready:
-                    worker = self.workers.pop(0)
-                    client = b"N/A"
-                    self.backend.send_array_envelope(worker, client, msg, array, copy=False)
-                    if not self.workers:
-                        self.backend_ready = False
-
-                # -- handle secondary xpub
-                self.backend_xpub.send_array(array, msg=msg, copy=False)
+                data_type = "camera"
+                pass_data = True
             elif "radar" in msg["identifier"]:
+                data_type = "radar"
+                pass_data = True
+
+            # -- pass on the data
+            if pass_data:
+                # -- primary worker
                 if self.verbose:
-                    self.print(f"received radar detections of size {array.shape}", end="\n")
-                pass
+                    self.print(f"received {data_type} array of size {array.shape}", end="\n")
+                if self.backend_ready[data_type]:
+                    worker = self.workers[data_type].pop(0)
+                    client = f"OK-{data_type}".encode()  # TODO: why is this needed???
+                    self.backend.send_array_envelope(worker, client, msg, array, copy=False)
+                else:
+                    if self.verbose:
+                        self.print(f"broker had {data_type} data to send but no worker ready", end="\n")
+
+                # -- secondary xpub (for display only)
+                if data_type == "camera":
+                    self.backend_xpub.send_array(array, msg=msg, copy=False)
+
+            # -- check workers
+            for k in self.workers:
+                if not self.workers[k]:
+                    self.backend_ready[k] = False
 
         # --- handle subscription requests
         if self.backend_xpub in socks and socks[self.backend_xpub] == zmq.POLLIN:
