@@ -11,7 +11,10 @@ import numpy as np
 import zmq
 from avstack.calibration import CameraCalibration
 from avstack.geometry import NominalOriginStandard
-from avstack.modules.perception.detections import format_data_container_as_string
+from avstack.modules.perception.detections import (
+    format_data_container_as_string,
+    get_data_container_from_line,
+)
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from avstack.sensors import ImageData
 
@@ -50,7 +53,7 @@ class ObjectDetector(BaseClass):
         self.print("initialized perception model!", end="\n")
 
         # -- ready to go (need this!)
-        self.frontend.send(b"READY")
+        self.frontend.send(b"READY-camera")
         self.print(f"ready to start", end="\n")
 
     def poll(self):
@@ -76,7 +79,7 @@ class ObjectDetector(BaseClass):
         # -- send data at backend
         self.backend.send_multipart([b"detections", detections])
         # -- say we're ready for more
-        self.frontend.send_multipart([address, b"", b"OK"])
+        self.frontend.send_multipart([address, b"", b"OK-camera"])
 
     def set_model(self):
         raise NotImplementedError
@@ -175,8 +178,47 @@ class ImageObjectDetector(ObjectDetector):
 class RadarObjectDetector(ObjectDetector):
     NAME = "radar-detector"
 
+    def __init__(
+        self,
+        context,
+        IN_HOST,
+        IN_PORT,
+        OUT_HOST,
+        OUT_PORT,
+        OUT_BIND,
+        identifier,
+        dataset="none",
+        model="passthrough",
+        threshold=0.5,
+        verbose=False,
+    ) -> None:
+        super().__init__(
+            context,
+            IN_HOST,
+            IN_PORT,
+            OUT_HOST,
+            OUT_PORT,
+            OUT_BIND,
+            identifier,
+            dataset,
+            model,
+            threshold,
+            verbose,
+        )
+        self.passthrough = model == "passthrough"
+
     def set_model(self, dataset, model, threshold):
-        raise NotImplementedError
+        if model == "passthrough":
+            self.model = lambda x: x  # just a passthrough function
+        else:
+            raise NotImplementedError(model)
+
+    def detect(self, metadata, array):
+        if self.passthrough:
+            detections = get_data_container_from_line(array)
+        else:
+            raise NotImplementedError
+        return detections
 
 
 def start_worker(task, *args, **kwargs):

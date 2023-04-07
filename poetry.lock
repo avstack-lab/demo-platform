@@ -1718,6 +1718,26 @@ type = "directory"
 url = "third_party/lib-avstack-core"
 
 [[package]]
+name = "lib-rad"
+version = "0.1.0-alpha.1"
+description = "Radar sensor utility functions"
+category = "main"
+optional = false
+python-versions = "~3.8"
+files = []
+develop = true
+
+[package.dependencies]
+numpy = "^1.19"
+pyqt5 = "^5.15.8"
+pyqtgraph = "^0.13.1"
+pyserial = "^3.5"
+
+[package.source]
+type = "directory"
+url = "third_party/lib-rad"
+
+[[package]]
 name = "llvmlite"
 version = "0.36.0"
 description = "lightweight wrapper around basic LLVM functionality"
@@ -2051,6 +2071,7 @@ tests = ["PyTurboJPEG", "coverage", "lmdb", "onnx", "onnxoptimizer", "onnxruntim
 [package.source]
 type = "url"
 url = "https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/mmcv_full-1.7.0-cp38-cp38-manylinux1_x86_64.whl"
+
 [[package]]
 name = "mmdet"
 version = "2.25.3"
@@ -3206,6 +3227,21 @@ files = [
 ]
 
 [[package]]
+name = "pyqtgraph"
+version = "0.13.2"
+description = "Scientific Graphics and GUI Library for Python"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pyqtgraph-0.13.2-py3-none-any.whl", hash = "sha256:078afbd9528164f3dd524f68cbf56618055b851384cfacc675ac189d919544a8"},
+    {file = "pyqtgraph-0.13.2.tar.gz", hash = "sha256:751790759adb3baa03a03ea5785e4c874c962a6107500d66811842f2dda6d28d"},
+]
+
+[package.dependencies]
+numpy = ">=1.20.0"
+
+[[package]]
 name = "pyquaternion"
 version = "0.9.9"
 description = "A fully featured, pythonic library for representing and using quaternions."
@@ -3261,6 +3297,21 @@ files = [
     {file = "pyrsistent-0.19.3-py3-none-any.whl", hash = "sha256:ccf0d6bd208f8111179f0c26fdf84ed7c3891982f2edaeae7422575f47e66b64"},
     {file = "pyrsistent-0.19.3.tar.gz", hash = "sha256:1a2994773706bbb4995c31a97bc94f1418314923bd1048c6d964837040376440"},
 ]
+
+[[package]]
+name = "pyserial"
+version = "3.5"
+description = "Python Serial Port Extension"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"},
+    {file = "pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb"},
+]
+
+[package.extras]
+cp2110 = ["hidapi"]
 
 [[package]]
 name = "pytest"
@@ -4068,6 +4119,7 @@ numpy = ">=1.19"
 [package.source]
 type = "url"
 url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl"
+
 [[package]]
 name = "stack-data"
 version = "0.6.2"
@@ -4309,6 +4361,7 @@ typing-extensions = "*"
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cu113/torch-1.10.0%2Bcu113-cp38-cp38-linux_x86_64.whl"
+
 [[package]]
 name = "torchvision"
 version = "0.11.0+cu113"
@@ -4331,6 +4384,7 @@ scipy = ["scipy"]
 [package.source]
 type = "url"
 url = "https://download.pytorch.org/whl/cu113/torchvision-0.11.0%2Bcu113-cp38-cp38-linux_x86_64.whl"
+
 [[package]]
 name = "tornado"
 version = "6.2"
@@ -4605,4 +4659,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.8"
-content-hash = "0e7f9c52d1825706078374c9d740554ee6d052cbaf7a792c95f50e9cf0d6704a"
+content-hash = "f1f4bb9a481c0a5c8ceb28ae8c94e1e5988963eb424432c34ed0883eaddc8e68"

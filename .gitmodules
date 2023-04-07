@@ -10,3 +10,6 @@
 [submodule "third_party/lib-avstack-api"]
 	path = third_party/lib-avstack-api
 	url = https://github.com/avstack-lab/lib-avstack-api
+[submodule "third_party/lib-rad"]
+	path = third_party/lib-rad
+	url = https://github.com/avstack-lab/lib-rad

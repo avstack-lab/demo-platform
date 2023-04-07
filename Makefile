@@ -56,8 +56,11 @@ replay: $(INSTALL_STAMP)
 .PHONY: data_broker
 data_broker: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/broker.py \
-			lb_with_xsub_extra_xpub --frontend 5550 \
-			--backend 5551 --backend_other 5552 --verbose
+			lb_with_xsub_extra_xpub \
+			--frontend 5550 \
+			--backend 5551 \
+			--backend_other 5552 \
+			--verbose
 
 .PHONY: detection_workers
 detection_workers: $(INSTALL_STAMP)
@@ -86,7 +89,17 @@ frontend: $(INSTALL_STAMP)
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensor.py \
-			--type camera-flir-bfs --host 127.0.0.1 \
+			--sensor_type camera-flir-bfs
+			--config camera_1
+			--host 127.0.0.1 \
 			--backend 5550 \
 			--verbose \
-			--resize_factor 4
+
+.PHONY: radar
+radar: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensor.py \
+			--sensor_type ti-radar \
+			--config radar_1 \
+			--host 127.0.0.1 \
+			--backend 5550 \
+			--verbose \

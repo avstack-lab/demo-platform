@@ -13,14 +13,16 @@ import time
 import cv2
 import numpy as np
 import PySpin
+import rad
 import zmq
 from context import SerializingContext
 from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
+from avstack.geometry.transformations import matrix_cartesian_to_spherical
 
 
 STOP_KEY = "q"
 DEFAULT_BACKEND_PORT = 6551
-ACCEPTABLE_SENSOR_TYPES = ["camera-flir-bfs", "camera-rpi"]
+ACCEPTABLE_SENSOR_TYPES = ["camera-flir-bfs", "camera-rpi", "ti-radar"]
 
 
 def flir_capture(handle, image_dimensions):
@@ -52,42 +54,138 @@ class Sensor(BaseClass):
     Pattern: Data aquisition --> context.socket(zmq.PUB)
     """
 
-    NAME = "sensor"
+    NAME = "generic-sensor"
 
     def __init__(
         self,
         context,
-        identifier,
-        type,
+        BACKEND_HOST,
+        BACKEND_PORT,
+        sensor_type,
         configs,
-        host,
-        backend,
-        backend_other,
-        resize_factor,
+        identifier,
+        verbose=False,
+    ) -> None:
+        super().__init__(self.NAME, identifier, verbose)
+
+        if sensor_type in ACCEPTABLE_SENSOR_TYPES:
+            self.sensor_type = sensor_type
+        else:
+            raise NotImplementedError(f"Unacceptable sensor type: {sensor_type}")
+
+        self.configuration = configs
+        self.backend = init_some_end(
+            self, context, "backend", zmq.PUB, BACKEND_HOST, BACKEND_PORT, BIND=False
+        )
+
+    def initialize(self):
+        raise NotImplementedError
+
+    def start_capture(self):
+        raise NotImplementedError
+
+
+class Radar(Sensor):
+    NAME = "radar-sensor"
+
+    def __init__(
+        self,
+        context,
+        BACKEND_HOST,
+        BACKEND_PORT,
+        sensor_type,
+        configs,
+        identifier,
         verbose=False,
         *args,
         **kwargs,
     ) -> None:
-        super().__init__(self.NAME, identifier)
+        super().__init__(
+            context,
+            BACKEND_HOST,
+            BACKEND_PORT,
+            sensor_type,
+            configs,
+            identifier,
+            verbose,
+        )
+        self.radar = None
+        self.frame = 0
 
-        if type in ACCEPTABLE_SENSOR_TYPES:
-            self.type = type
-        else:
-            raise NotImplementedError(f"Unacceptable sensor type: {type}")
-
-        self.configs = configs
-
-        self.backend = init_some_end(
-            self, context, "backend", zmq.PUB, host, backend, BIND=False
+    def initialize(self):
+        self.radar = rad.Radar(
+            config_file_name=self.configuration["config_file_name"],
+            translate_from_JSON=False,
+            enable_serial=True,
+            CLI_port=self.configuration["CLI_port"],
+            Data_port=self.configuration["Data_port"],
+            enable_plotting=False,
+            jupyter=False,
+            data_file=None,
+            refresh_rate=self.configuration["refresh_rate"],
+            verbose=False,
         )
 
-        if backend_other is not None:
-            self.backend_other = init_some_end(
-                self, context, "backend_other", zmq.PUB, host, backend_other, BIND=False
-            )
+    def start_capture(self):
+        self.radar.start()
+        t0 = time.time()
+        while True:
+            try:
+                # -- read from serial port
+                time.sleep(self.radar.refresh_delay)
+                xyzrrt = self.radar.read_serial()
+                if xyzrrt is None:
+                    continue
+                razelrrt = xyzrrt.copy()
+                razelrrt[:, :3] = matrix_cartesian_to_spherical(xyzrrt[:, :3])
 
-        self.resize_factor = resize_factor
-        self.verbose = verbose
+                # -- send across comms channel
+                timestamp = round(time.time() - t0, 9)
+                msg = {
+                    "timestamp":timestamp,
+                    "frame":self.frame,
+                    "identifier":self.identifier,
+                    "extrinsics":[0, 0, 0, 0, 0],
+                }
+                self.backend.send_array(razelrrt, msg, False)
+                if self.verbose:
+                    self.print(
+                        f"sending data, frame: {msg['frame']:4d}, timestamp: {msg['timestamp']:.4f}",
+                        end="\n",
+                    )
+                self.frame += 1
+            except KeyboardInterrupt:
+                self.radar.streamer.stop_serial_stream()
+                if self.verbose:
+                    print("Radar.stream_serial: stopping serial stream")
+                break
+
+
+class Camera(Sensor):
+    NAME = "camera-sensor"
+
+    def __init__(
+        self,
+        context,
+        BACKEND_HOST,
+        BACKEND_PORT,
+        sensor_type,
+        configs,
+        identifier,
+        verbose=False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            context,
+            BACKEND_HOST,
+            BACKEND_PORT,
+            sensor_type,
+            configs,
+            identifier,
+            verbose=verbose,
+        )
+
         self.handle = None
         self.streaming = False
 
@@ -95,13 +193,13 @@ class Sensor(BaseClass):
         if self.type == "camera-flir-bfs":
 
             ## Extract sensor configs for flir bfs
-            cam_name = self.configs.get("name", "NA")
-            cam_serial = self.configs.get("serial", "NA")
-            cam_ip = self.configs.get("ip", "NA")
-            cam_width_px = int(self.configs.get("width_px", 0))
-            cam_height_px = int(self.configs.get("height_px", 0))
-            cam_fps = int(self.configs.get("fps", 0))
-            cam_frame_size_bytes = int(self.configs.get("frame_size_bytes", 0))
+            cam_name = self.configuration.get("name", "NA")
+            cam_serial = self.configuration.get("serial", "NA")
+            cam_ip = self.configuration.get("ip", "NA")
+            cam_width_px = int(self.configuration.get("width_px", 0))
+            cam_height_px = int(self.configuration.get("height_px", 0))
+            cam_fps = int(self.configuration.get("fps", 0))
+            cam_frame_size_bytes = int(self.configuration.get("frame_size_bytes", 0))
 
             ## Connect to camera
             system = PySpin.System.GetInstance()
@@ -144,18 +242,13 @@ class Sensor(BaseClass):
             }
 
             self.handle.BeginAcquisition()
-            t0 = 0
+            t0 = time.time()
             frame_counter = 0
             while True:
-
                 ptr = self.handle.GetNextImage()
                 if ptr.IsIncomplete():
                     continue  # discard image
-
-                now = time.time()  # float(ptr.GetTimeStamp())
-                if frame_counter == 0:
-                    t0 = now
-                timestamp = round(now - t0, 9)  # * 1e-9 # ms
+                timestamp = round(time.time() - t0, 9)  # * 1e-9 # ms
                 msg["timestamp"] = timestamp
                 msg["frame"] = frame_counter
 
@@ -168,8 +261,8 @@ class Sensor(BaseClass):
                 )  # np.ndarray with d = (h, w, 3)
 
                 # -- resize image before compression
-                new_h = int(img.shape[0] / self.resize_factor)
-                new_w = int(img.shape[1] / self.resize_factor)
+                new_h = int(img.shape[0] / self.configuration["resize_factor"])
+                new_w = int(img.shape[1] / self.configuration["resize_factor"])
                 img_resized = cv2.resize(
                     img, (new_w, new_h), interpolation=cv2.INTER_AREA
                 )
@@ -252,7 +345,6 @@ class Sensor(BaseClass):
                         f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
                         end="\n",
                     )
-
                 frame_counter += 1
 
         elif self.type == "camera-rpi":
@@ -268,26 +360,28 @@ class Sensor(BaseClass):
 
 
 def main(args, configs):
-
-    ### Instantiate Sensor and configure device ###
+    # -- init sensor class
     context = SerializingContext()
-    sensor = Sensor(
-        context,
-        configs["name"],
-        args.type,
-        configs,
-        args.host,
-        args.backend,
-        args.backend_other,
-        args.resize_factor,
-        verbose=args.verbose,
+    if 'camera' in args.sensor_type:
+        SensorClass = Camera
+    elif 'radar' in args.sensor_type:
+        SensorClass = Radar
+    else:
+        raise NotImplementedError(args.sensor_type)
+    sensor = SensorClass(
+            context,
+            args.host,
+            args.backend,
+            args.sensor_type,
+            configs[args.config],
+            configs[args.config]["name"],
+            verbose=args.verbose
     )
 
+    # -- initialize and run sensor
     sensor.initialize()
     print("Sensor successfully initialized in sensor.py")
-
     sensor.start_capture()
-    # print("foo")
 
 
 if __name__ == "__main__":
@@ -303,6 +397,7 @@ if __name__ == "__main__":
             "height_px": "2048",
             "fps": "20",
             "frame_size_bytes": "307200",
+            "resize_factor": 4,
         },
         "camera_2": {
             "name": "camera_2",
@@ -313,6 +408,7 @@ if __name__ == "__main__":
             "height_px": "2048",
             "fps": "10",
             "frame_size_bytes": "307200",
+            "resize_factor": 4,
         },
         "camera_3": {
             "name": "camera_jackwhite",
@@ -323,12 +419,26 @@ if __name__ == "__main__":
             "height_px": "480",
             "fps": "25",
             "frame_size_bytes": "NA",
+            "resize_factor": 4,
         },
+        "radar_1": {
+            "name": "radar_1",
+            "config_file_name": "1443config.cfg",
+            "CLI_port": "/dev/ttyACM0",
+            "Data_port": "/dev/ttyACM1",
+            "refresh_rate": 50.0
+        }
     }
 
     parser = argparse.ArgumentParser("Initialize a Sensor")
     parser.add_argument(
-        "--type",
+        "--config",
+        choices=list(configs.keys()),
+        type=str,
+        help="Select the configuration to apply"
+    )
+    parser.add_argument(
+        "--sensor_type",
         choices=ACCEPTABLE_SENSOR_TYPES,
         type=str,
         help="Selection of sensor type",
@@ -340,19 +450,7 @@ if __name__ == "__main__":
         default=DEFAULT_BACKEND_PORT,
         help="Backend port number (PUB)",
     )
-    parser.add_argument(
-        "--backend_other",
-        type=int,
-        help="Extra backend port (used only in select classes)",
-    )
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument(
-        "--resize_factor",
-        choices=[1, 2, 4, 8],
-        type=int,
-        help="Resize image by a factor of 1/x",
-    )
-
     args = parser.parse_args()
 
-    main(args, configs["camera_1"])
+    main(args, configs)
