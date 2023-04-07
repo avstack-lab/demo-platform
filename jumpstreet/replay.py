@@ -10,7 +10,7 @@ import time
 import numpy as np
 import zmq
 from cv2 import imread
-
+import cv2
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end
 
@@ -135,6 +135,14 @@ class SensorDataReplayer(BaseClass):
                 print("done")
 
     def _send_image_data(self, array, msg):
+        # -- image compression
+        success, result = cv2.imencode(
+            ".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, 80]
+        )
+        if not success:
+            raise RuntimeError("Error compressing image")
+        compressed_frame = np.array(result)
+        array = np.ascontiguousarray(compressed_frame)
         if array.flags["C_CONTIGUOUS"]:
             # if array is already contiguous in memory just send it
             self.backend.send_array(array, msg, copy=False)

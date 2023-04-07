@@ -56,8 +56,11 @@ replay: $(INSTALL_STAMP)
 .PHONY: data_broker
 data_broker: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/broker.py \
-			lb_with_xsub_extra_xpub --frontend 5550 \
-			--backend 5551 --backend_other 5552 --verbose
+			lb_with_xsub_extra_xpub \
+			--frontend 5550 \
+			--backend 5551 \
+			--backend_other 5552 \
+			--verbose
 
 .PHONY: detection_workers
 detection_workers: $(INSTALL_STAMP)
