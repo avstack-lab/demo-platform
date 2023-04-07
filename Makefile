@@ -86,7 +86,17 @@ frontend: $(INSTALL_STAMP)
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensor.py \
-			--type camera-flir-bfs --host 127.0.0.1 \
+			--sensor_type camera-flir-bfs
+			--config camera_1
+			--host 127.0.0.1 \
 			--backend 5550 \
 			--verbose \
-			--resize_factor 4
+
+.PHONY: radar
+radar: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensor.py \
+			--sensor_type ti-radar \
+			--config radar_1 \
+			--host 127.0.0.1 \
+			--backend 5550 \
+			--verbose \
