@@ -132,10 +132,12 @@ class Radar(Sensor):
         while True:
             try:
                 # -- read from serial port
+                time.sleep(self.radar.refresh_delay)
                 xyzrrt = self.radar.read_serial()
+                if xyzrrt is None:
+                    continue
                 razelrrt = xyzrrt.copy()
                 razelrrt[:, :3] = matrix_cartesian_to_spherical(xyzrrt[:, :3])
-                time.sleep(self.radar.refresh_delay)
 
                 # -- send across comms channel
                 timestamp = round(time.time() - t0, 9)

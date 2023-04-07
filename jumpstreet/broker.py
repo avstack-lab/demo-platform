@@ -137,19 +137,26 @@ class LoadBalancingBrokerXSub(BaseClass):
         # --- handle incoming data on the frontend
         if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
             msg, array = self.frontend.recv_array(copy=False)
-            if self.verbose:
-                self.print(f"received image of size {array.shape}", end="\n")
 
-            #  -- Route data to last-used worker, if ready
-            if self.backend_ready:
-                worker = self.workers.pop(0)
-                client = b"N/A"
-                self.backend.send_array_envelope(worker, client, msg, array, copy=False)
-                if not self.workers:
-                    self.backend_ready = False
+            # --- handle different data types
+            if "camera" in msg["identifier"]:
+                if self.verbose:
+                    self.print(f"received image of size {array.shape}", end="\n")
 
-            # -- handle secondary xpub
-            self.backend_xpub.send_array(array, msg=msg, copy=False)
+                #  -- Route data to last-used worker, if ready
+                if self.backend_ready:
+                    worker = self.workers.pop(0)
+                    client = b"N/A"
+                    self.backend.send_array_envelope(worker, client, msg, array, copy=False)
+                    if not self.workers:
+                        self.backend_ready = False
+
+                # -- handle secondary xpub
+                self.backend_xpub.send_array(array, msg=msg, copy=False)
+            elif "radar" in msg["identifier"]:
+                if self.verbose:
+                    self.print(f"received radar detections of size {array.shape}", end="\n")
+                pass
 
         # --- handle subscription requests
         if self.backend_xpub in socks and socks[self.backend_xpub] == zmq.POLLIN:
