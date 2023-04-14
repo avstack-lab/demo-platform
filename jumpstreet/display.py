@@ -1,6 +1,15 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import os
+
+#################################################################
+# NOTE: These two lines are VERY IMPORTANT -- they ensure qt
+# uses its own path to the graphics plugins and not the cv2 path
+import cv2
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+#################################################################
+
 from PyQt5.QtCore import Qt, QThread
 from PyQt5.QtGui import QImage, QPainter, QPalette, QPixmap
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter

@@ -4,12 +4,17 @@ from __future__ import print_function
 
 import argparse
 import logging
-
-import numpy as np
 import zmq
-
+import multiprocessing
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end
+from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace
+
+
+def start_process_from_config(config):
+    process = multiprocessing.Process(target=main, args=config)
+    process.daemon = True
+    process.start()
+    return process
 
 
 class LoadBalancingBroker(BaseClass):
@@ -97,22 +102,22 @@ class LoadBalancingBrokerXSub(BaseClass):
     def __init__(
         self,
         context,
-        FRONTEND=5550,
-        BACKEND=5551,
-        BACKEND_OTHER=5552,
+        frontend,
+        backend,
+        backend_other,
         identifier=0,
         verbose=False,
     ) -> None:
         super().__init__(self.NAME, identifier)
         self.verbose = verbose
         self.frontend = init_some_end(
-            self, context, "frontend", zmq.XSUB, "*", FRONTEND, BIND=True
+            self, context, "frontend", zmq.XSUB, frontend.host, frontend.port, BIND=frontend.bind,
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.ROUTER, "*", BACKEND, BIND=True
+            self, context, "backend", zmq.ROUTER, backend.host, backend.port, BIND=backend.bind,
         )
         self.backend_xpub = init_some_end(
-            self, context, "backend-xpub", zmq.XPUB, "*", BACKEND_OTHER, BIND=True
+            self, context, "backend-xpub", zmq.XPUB, backend.host, backend_other.port, BIND=backend_other.bind
         )
         self.backend_ready = {"camera":False, "radar":False}
         self.workers = {"camera":[], "radar":[]}
@@ -187,23 +192,23 @@ class LoadBalancingBrokerXSub(BaseClass):
         self.backend_xpub.close()
 
 
-def init_broker(broker_type):
-    if broker_type.lower() == "lb":
+def init_broker(broker):
+    if broker.type.lower() == "lb":
         return LoadBalancingBroker
-    elif broker_type.lower() == "lb_with_xsub_extra_xpub":
+    elif broker.type.lower() == "lb_with_xsub_extra_xpub":
         return LoadBalancingBrokerXSub
     else:
-        raise NotImplementedError(broker_type)
+        raise NotImplementedError(broker.type)
 
 
-def main(args):
-    context = SerializingContext(args.io_threads)
-    broker = init_broker(args.broker)(
+def main(config):
+    context = SerializingContext(config.broker.io_threads)
+    broker = init_broker(config.broker)(
         context,
-        FRONTEND=args.frontend,
-        BACKEND=args.backend,
-        verbose=args.verbose,
-        BACKEND_OTHER=args.backend_other,
+        frontend=config.frontend,
+        backend=config.backend,
+        verbose=config.verbose,
+        backend_other=config.backend_other
     )
     try:
         while True:
@@ -217,26 +222,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize a broker")
     parser.add_argument(
-        "broker",
-        choices=["lb", "lb_with_xsub_extra_xpub"],
-        type=str,
-        help="Selection of broker type",
+        "--config",
+        default='broker/default.yml'
     )
-    parser.add_argument(
-        "--io_threads", type=int, default=3, help="Number of io threads for context"
-    )
-    parser.add_argument(
-        "--frontend", type=int, default=5550, help="Frontend port number (clients)"
-    )
-    parser.add_argument(
-        "--backend", type=int, default=5551, help="Backend port number (workers)"
-    )
-    parser.add_argument(
-        "--backend_other",
-        type=int,
-        help="Extra backend port (used only in select classes)",
-    )
-    parser.add_argument("--verbose", action="store_true")
-
     args = parser.parse_args()
-    main(args)
+    config = config_as_namespace(args.config)
+    main(config)

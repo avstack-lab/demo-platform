@@ -200,7 +200,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize sensor replayer client")
     parser.add_argument(
-        "--camera_id", default="camera_1", help="Identifier of the camera"
+        "--camera_id", default="1", help="Identifier of the camera"
     )
     parser.add_argument(
         "-n", "--nclients", type=int, default=1, help="Number of clients"

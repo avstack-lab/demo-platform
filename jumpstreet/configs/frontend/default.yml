@@ -1,0 +1,18 @@
+---
+frontend_images:
+  host: localhost
+  port: 5552
+  bind: False
+
+frontend_tracks:
+  host: localhost
+  port: 5554
+  bind: False
+
+display:
+  io_threads: 2
+  camera_id: camera_1
+  width: 1224
+  height: 1024
+
+verbose: True

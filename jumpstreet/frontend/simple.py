@@ -8,25 +8,32 @@ Runs the front-end which includes:
 import argparse
 import logging
 import sys
-import time
 
+from cv2 import IMREAD_COLOR, imdecode
 import numpy as np
 import zmq
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 
 import jumpstreet
+from jumpstreet.utils import config_as_namespace
+
+from avstack.datastructs import BasicDataBuffer, DataContainer
+from avstack.modules.tracking.tracks import get_data_container_from_line
 
 
 class MainLoop(QObject):
     update = pyqtSignal(object)
+    NAME = "frontend"
 
     def __init__(
-        self, display_cam_id, context, HOST, PORT_TRACKS, PORT_IMAGES, dt_delay=0.1
+        self, display_cam_id, context, frontend_images, frontend_tracks, dt_delay=0.1, verbose=False
     ):
         super().__init__()
         self.quit_flag = False
         self.display_cam_id = display_cam_id
+        self.verbose = verbose
+        self.identifier = 0
 
         # -- set up frontend data receivers
         self.frontend_tracks = jumpstreet.utils.init_some_end(
@@ -34,9 +41,9 @@ class MainLoop(QObject):
             context=context,
             end_type="frontend",
             pattern=zmq.SUB,
-            HOST=HOST,
-            PORT=PORT_TRACKS,
-            BIND=False,
+            HOST=frontend_tracks.host,
+            PORT=frontend_tracks.port,
+            BIND=frontend_tracks.bind,
             subopts=b"",
         )
         self.frontend_images = jumpstreet.utils.init_some_end(
@@ -44,11 +51,12 @@ class MainLoop(QObject):
             context=context,
             end_type="frontend",
             pattern=zmq.SUB,
-            HOST=HOST,
-            PORT=PORT_IMAGES,
-            BIND=False,
+            HOST=frontend_images.host,
+            PORT=frontend_images.port,
+            BIND=frontend_images.bind,
             subopts=b"",
         )
+        self.dt_delay = dt_delay
 
         # -- set up polling
         self.poller = zmq.Poller()
@@ -57,23 +65,20 @@ class MainLoop(QObject):
 
         # -- set up processes
         self.trigger = jumpstreet.trigger.AlwaysTrigger(identifier=0)
-        self.video_buffer = None
-        self.track_buffer = None
-        self.muxer = None
-        self.dt_delay = dt_delay
-
-    def run(self):
-        # -- need to defer import and init due to Qt error
-        from avstack.datastructs import BasicDataBuffer, DataContainer
-        from avstack.modules.tracking.tracks import get_data_container_from_line
-        from cv2 import IMREAD_COLOR, imdecode
-
         self.video_buffer = BasicDataBuffer(max_size=30)
         self.track_buffer = BasicDataBuffer(max_size=30)
         self.muxer = jumpstreet.muxer.VideoTrackMuxer(
-            self.video_buffer, self.track_buffer, identifier=0, dt_delay=self.dt_delay
+            self.video_buffer, self.track_buffer, identifier=0, dt_delay=self.dt_delay, verbose=self.verbose
         )
 
+    def print(self, msg, end="", flush=True):
+        try:
+            name = self.NAME
+        except AttributeError as e:
+            name = self.name
+        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
+
+    def run(self):
         # -- put the muxer process on a thread that executes at a certain rate
         self.muxer.start_continuous_process_thread(execute_rate=100, t_max_delta=0.1)
         try:
@@ -90,7 +95,8 @@ class MainLoop(QObject):
 
                     timestamp = msg["timestamp"]
                     frame = msg["frame"]
-                    # print(f"received frame at time: {timestamp}")
+                    if self.verbose:
+                        self.print(f"received frame at time: {timestamp}", end="\n")
                     identifier = msg["identifier"]
                     image_data_container = DataContainer(
                         frame=frame,
@@ -101,18 +107,20 @@ class MainLoop(QObject):
                     self.video_buffer.push(image_data_container)
 
                     # -- update display window dimensions to fit image
-                    h, w, _ = image.shape
-                    padding = (
-                        1.1  # accounts for scroll area and padding in Image Viewer
-                    )
-                    display.resize(int(padding * w), int(padding * h))
+                    # h, w, _ = image.shape
+                    # padding = (
+                    #     1.1  # accounts for scroll area and padding in Image Viewer
+                    # )
+                    # self.display.resize(int(padding * w), int(padding * h))
 
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
                     track_data_container = get_data_container_from_line(
-                        data.decode(), identifier_override=args.display_cam_id
+                        data.decode(), identifier_override=config.display.camera_id
                     )
+                    if self.verbose:
+                        self.print(f"received tracks at time: {track_data_container.timestamp}", end="\n")
                     self.track_buffer.push(track_data_container)
 
                 # -- emit an image, subject to a delay factor
@@ -120,8 +128,10 @@ class MainLoop(QObject):
                 if (self.display_cam_id in image_out) and len(
                     image_out[self.display_cam_id]
                 ) > 0:
+                    if self.verbose:
+                        self.print(f"emitting image to display", end="\n")
                     self.update.emit([image_out[self.display_cam_id].data])
-
+    
         except Exception as e:
             logging.warning(e, exc_info=True)
 
@@ -130,37 +140,34 @@ class MainLoop(QObject):
             self.frontend_images.close()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Front end process")
-    parser.add_argument(
-        "--display_cam_id", type=str, help="Identifier name of camera image to display"
-    )
-    parser.add_argument("--io_threads", type=int, default=2)
-    parser.add_argument("--host", type=str, default="localhost")
-    parser.add_argument("--port_tracks", type=int, default=5554)
-    parser.add_argument("--port_images", type=int, default=5552)
-    parser.add_argument("--width", type=int, default=1920)
-    parser.add_argument("--height", type=int, default=1080)
-    parser.add_argument("--verbose", action="store_true")
-
-    args = parser.parse_args()
-
-    context = jumpstreet.context.SerializingContext(args.io_threads)
+def main(config):
+    context = jumpstreet.context.SerializingContext(config.display.io_threads)
     main_loop = MainLoop(
-        display_cam_id=args.display_cam_id,
+        display_cam_id=config.display.camera_id,
         context=context,
-        HOST=args.host,
-        PORT_TRACKS=args.port_tracks,
-        PORT_IMAGES=args.port_images,
+        frontend_images=config.frontend_images,
+        frontend_tracks=config.frontend_tracks,
+        verbose=config.verbose
     )
 
     app = QApplication(sys.argv)
     display = jumpstreet.display.StreamThrough(
         main_loop=main_loop,
-        width=args.width / 2,
-        height=args.height / 2,
+        width=config.display.width / 2,
+        height=config.display.height / 2,
         identifier=0,
-        verbose=args.verbose,
+        verbose=config.verbose,
     )
     display.start()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("Initialize a frontend display")
+    parser.add_argument(
+        "--config",
+        default='frontend/default.yml'
+    )
+    args = parser.parse_args()
+    config = config_as_namespace(args.config)
+    main(config)

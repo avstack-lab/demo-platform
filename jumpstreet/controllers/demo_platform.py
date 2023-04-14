@@ -1,17 +1,83 @@
-"""
-Author: Nate Zelter
-Date: April 2023
-
-"""
-
-
 import argparse
 import os
 import subprocess
 import time
+import yaml
+
+import jumpstreet
+from jumpstreet.controllers import _Controller
 
 
-AVAILABLE_COMMANDS = ["simple-flir-old", "camera-1", "camera-1-verbose"]
+class DemoController(_Controller):
+    def __init__(self, broker, detection, tracking, frontend) -> None:
+        super().__init__()
+        self.broker = broker
+        self.detection = detection
+        self.tracking = tracking
+        self.frontend = frontend
+
+    def start(self):
+        """Start up all the processes
+        
+        The order of starting is important in some cases.
+        e.g., if using interprocess communication, the binding
+        socket MUST be started first.
+        """
+        self.processes.append(jumpstreet.broker.start_process_from_config(self.broker))
+        self.processes.extend(jumpstreet.detection.start_process_from_config(self.detection))
+        self.processes.extend(jumpstreet.tracking.start_process_from_config(self.tracking))
+        self.processes.append(jumpstreet.frontend.start_process_from_config(self.frontend))
+
+
+
+def config_path(config):
+    return os.path.join(os.path.dirname(__file__), '../configs', config)
+
+
+def main(args):
+    """Start up the processes with configs"""
+    broker = yaml.safe_load(config_path(args.broker_config))
+    detection = yaml.safe_load(config_path(args.detection_config))
+    tracking = yaml.safe_load(config_path(args.tracking_config))
+    frontend = yaml.safe_load(config_path(args.frontend_config))
+    control = DemoController(broker=broker,
+        detection=detection, tracking=tracking, frontend=frontend)
+    try:
+        control.start()
+    except:
+        control.end()
+
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Run the demo platform controllers."
+    )
+    parser.add_argument(
+        "--broker_config", default='broker/default.yml'
+    )
+    parser.add_argument(
+        "--detection_config", default='detection/default.yml'
+    )
+    parser.add_argument(
+        "--tracking_config", default='tracking/default.yml'
+    )
+    parser.add_argument(
+        "--frontend_config", default='frontend/default.yml'
+    )
+    args = parser.parse_args()
+    main(args)
+
+
+
+
+
+
+
+
+
+
 
 
 def main(args):
@@ -83,12 +149,3 @@ def main(args):
                 # kill the process gracefully...
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Execute multiple Python files concurrently."
-    )
-    parser.add_argument(
-        "command", choices=AVAILABLE_COMMANDS, help="the command to run"
-    )
-    args = parser.parse_args()
-    main(args)

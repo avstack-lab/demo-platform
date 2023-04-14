@@ -1,0 +1,14 @@
+---
+frontend:
+  host: localhost
+  port: 5553
+  bind: True
+
+backend:
+  host: localhost
+  port: 5554
+  bind: True
+
+model: sort
+
+verbose: True

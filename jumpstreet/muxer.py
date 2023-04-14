@@ -3,6 +3,8 @@ import threading
 import time
 
 from jumpstreet.utils import BaseClass
+from avstack.datastructs import DataContainer, DelayManagedDataBuffer
+import cv2
 
 
 class VideoTrackMuxer(BaseClass):
@@ -17,10 +19,6 @@ class VideoTrackMuxer(BaseClass):
         self.video_buffer = video_buffer
         self.track_buffer = track_buffer
         self.ready = False
-
-        # need to defer import due to Qt import error
-        from avstack.datastructs import DataContainer, DelayManagedDataBuffer
-
         self.DataContainer = DataContainer
         self.muxed_buffer = DelayManagedDataBuffer(
             dt_delay=dt_delay, max_size=20, method="real-time"
@@ -55,6 +53,7 @@ class VideoTrackMuxer(BaseClass):
 
     def process(self, t_max_delta=0.05):
         """Check the data buffer and add any muxed frames that we can"""
+        print(self.video_buffer)
         for video_id, video_bucket in self.video_buffer.data.items():
             if self.track_buffer.has_data(video_id):
                 # -- select either the above or below track
@@ -106,8 +105,6 @@ class VideoTrackMuxer(BaseClass):
 
     def mux(self, image, tracks):
         """Mux together an image with track data using opencv"""
-        import cv2  # defer import due to conflict with qt
-
         color = (36, 255, 12)
         thickness = 2
         img = image.data

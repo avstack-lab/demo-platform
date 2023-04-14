@@ -5,10 +5,9 @@ import logging
 import multiprocessing
 from functools import partial
 from time import sleep
-
-import cv2
 import numpy as np
 import zmq
+import cv2
 from avstack.calibration import CameraCalibration
 from avstack.geometry import NominalOriginStandard
 from avstack.modules.perception.detections import (
@@ -17,20 +16,16 @@ from avstack.modules.perception.detections import (
 )
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from avstack.sensors import ImageData
-
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end
+from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace
 
 
 class ObjectDetector(BaseClass):
     def __init__(
         self,
         context,
-        IN_HOST,
-        IN_PORT,
-        OUT_HOST,
-        OUT_PORT,
-        OUT_BIND,
+        frontend,
+        backend,
         identifier,
         dataset,
         model,
@@ -44,10 +39,10 @@ class ObjectDetector(BaseClass):
         """
         super().__init__(name=self.NAME, identifier=identifier, verbose=verbose)
         self.frontend = init_some_end(
-            self, context, "frontend", zmq.REQ, IN_HOST, IN_PORT, BIND=False
+            self, context, "frontend", zmq.REQ, frontend.host, frontend.port, BIND=frontend.bind,
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.PUB, OUT_HOST, OUT_PORT, BIND=OUT_BIND
+            self, context, "backend", zmq.PUB, backend.host, backend.port, BIND=backend.bind,
         )
         self.set_model(dataset, model, threshold)
         self.print("initialized perception model!", end="\n")
@@ -94,11 +89,8 @@ class ImageObjectDetector(ObjectDetector):
     def __init__(
         self,
         context,
-        IN_HOST,
-        IN_PORT,
-        OUT_HOST,
-        OUT_PORT,
-        OUT_BIND,
+        frontend,
+        backend,
         identifier,
         dataset="coco-person",
         model="fasterrcnn",
@@ -107,11 +99,8 @@ class ImageObjectDetector(ObjectDetector):
     ) -> None:
         super().__init__(
             context,
-            IN_HOST,
-            IN_PORT,
-            OUT_HOST,
-            OUT_PORT,
-            OUT_BIND,
+            frontend,
+            backend,
             identifier,
             dataset,
             model,
@@ -181,11 +170,8 @@ class RadarObjectDetector(ObjectDetector):
     def __init__(
         self,
         context,
-        IN_HOST,
-        IN_PORT,
-        OUT_HOST,
-        OUT_PORT,
-        OUT_BIND,
+        frontend,
+        backend,
         identifier,
         dataset="none",
         model="passthrough",
@@ -194,11 +180,8 @@ class RadarObjectDetector(ObjectDetector):
     ) -> None:
         super().__init__(
             context,
-            IN_HOST,
-            IN_PORT,
-            OUT_HOST,
-            OUT_PORT,
-            OUT_BIND,
+            frontend,
+            backend,
             identifier,
             dataset,
             model,
@@ -230,11 +213,8 @@ def start_worker(task, *args, **kwargs):
 
 
 def main_single(
-    IN_HOST,
-    IN_PORT,
-    OUT_HOST,
-    OUT_PORT,
-    OUT_BIND,
+    frontend,
+    backend,
     worker_type,
     identifier,
     dataset,
@@ -252,11 +232,8 @@ def main_single(
         raise NotImplementedError(worker_type)
     detector = worker(
         context,
-        IN_HOST,
-        IN_PORT,
-        OUT_HOST,
-        OUT_PORT,
-        OUT_BIND,
+        frontend,
+        backend,
         identifier=identifier,
         dataset=dataset,
         model=model,
@@ -272,41 +249,38 @@ def main_single(
         detector.close()
 
 
-def main(args):
+def main(config):
     """Run object detection workers"""
     procs = []
     main_partial = partial(
         main_single,
-        args.in_host,
-        args.in_port,
-        args.out_host,
-        args.out_port,
-        args.out_bind,
+        config.frontend,
+        config.backend,
     )
 
     # -- start image workers
-    for i in range(args.n_image_workers):
+    for i in range(config.workers.image.n_workers):
         proc = start_worker(
             main_partial,
             worker_type="image",
             identifier=i,
-            dataset=args.image_dataset,
-            model=args.image_model,
-            threshold=args.image_threshold,
-            verbose=args.verbose,
+            dataset=config.workers.image.dataset,
+            model=config.workers.image.model,
+            threshold=config.workers.image.threshold,
+            verbose=config.verbose,
         )
         procs.append(proc)
 
     # -- start radar workers
-    for i in range(args.n_radar_workers):
+    for i in range(config.workers.radar.n_workers):
         proc = start_worker(
             main_partial,
             worker_type="radar",
             identifier=i,
-            dataset=args.radar_dataset,
-            model=args.radar_model,
-            threshold=args.radar_threshold,
-            verbose=args.verbose,
+            dataset=config.workers.radar_dataset,
+            model=config.workers.radar_model,
+            threshold=config.workers.radar_threshold,
+            verbose=config.verbose,
         )
         procs.append(proc)
 
@@ -325,83 +299,10 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
-
-    # -- image model parameters
     parser.add_argument(
-        "--n_image_workers",
-        type=int,
-        default=2,
-        help="Number of image detection workers",
+        "--config",
+        default='detection/default.yml'
     )
-    parser.add_argument(
-        "--image_model",
-        choices=["none", "fasterrcnn"],
-        default="none",
-        help="Perception model name to run",
-    )
-    parser.add_argument(
-        "--image_dataset",
-        choices=["coco-person"],
-        default="coco-person",
-        help="Perception dataset to base model on",
-    )
-    parser.add_argument(
-        "--image_threshold",
-        type=float,
-        default=0.5,
-        help="Confidence score threshold for image perception",
-    )
-    # -- radar model parameters
-    parser.add_argument(
-        "--n_radar_workers",
-        type=int,
-        default=0,
-        help="Number of radar detection workers",
-    )
-    parser.add_argument(
-        "--radar_model",
-        choices=["none"],
-        default="none",
-        help="Radar perception model name to run",
-    )
-    parser.add_argument(
-        "--radar_dataset",
-        choices=["none"],
-        default="none",
-        help="Radar perception dataset to base model on",
-    )
-    parser.add_argument(
-        "--radar_threshold",
-        type=float,
-        default=0.5,
-        help="Confidence score threshold for radar perception",
-    )
-
-    # -- host/port information
-    parser.add_argument(
-        "--in_host", default="localhost", type=str, help="Hostname to connect to"
-    )
-    parser.add_argument(
-        "--in_port", default=5551, type=int, help="Port to connect to server/broker"
-    )
-    parser.add_argument(
-        "--out_host",
-        default="localhost",
-        type=str,
-        help="Hostname to connect output to",
-    )
-    parser.add_argument(
-        "--out_port", default=5553, type=int, help="Port to connect output data to"
-    )
-    parser.add_argument(
-        "--out_bind",
-        action="store_true",
-        help="Whether or not the output connection binds here",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-    )
-
     args = parser.parse_args()
-    main(args)
+    config = config_as_namespace(args.config)
+    main(config)

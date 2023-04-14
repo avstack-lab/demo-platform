@@ -1,0 +1,24 @@
+---
+frontend:
+  host: localhost
+  port: 5551
+  bind: False
+
+backend:
+  host: localhost
+  port: 5553
+  bind: False
+
+workers:
+  image:
+    n_workers: 2
+    model: fasterrcnn
+    dataset: coco-person
+    threshold: 0.5
+  radar:
+    n_workers: 0
+    model: Null
+    dataset: Null
+    threshold: Null
+
+verbose: True
