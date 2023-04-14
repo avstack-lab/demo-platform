@@ -5,16 +5,8 @@ from __future__ import print_function
 import argparse
 import logging
 import zmq
-import multiprocessing
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace
-
-
-def start_process_from_config(config):
-    process = multiprocessing.Process(target=main, args=config)
-    process.daemon = True
-    process.start()
-    return process
 
 
 class LoadBalancingBroker(BaseClass):

@@ -1,6 +1,6 @@
 import time
 from collections import deque
-import os
+import os, sys
 import numpy as np
 import zmq
 import yaml
@@ -44,6 +44,7 @@ class BaseClass:
         except AttributeError as e:
             name = self.name
         print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
+        sys.stdout.flush()
 
 
 class TimeMonitor(BaseClass):

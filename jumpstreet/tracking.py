@@ -2,7 +2,7 @@
 
 import argparse
 import logging
-
+import multiprocessing
 import zmq
 from avstack.datastructs import DelayManagedDataBuffer
 from avstack.modules.perception.detections import get_data_container_from_line
@@ -129,43 +129,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = config_as_namespace(args.config)
     main(config)
-
-
-
-
-
-    # parser.add_argument(
-    #     "--model",
-    #     default="sort",
-    #     choices=["passthrough", "sort"],
-    #     help="Tracking model selection",
-    # )
-    # parser.add_argument(
-    #     "--in_host", default="localhost", type=str, help="Hostname to connect to"
-    # )
-    # parser.add_argument(
-    #     "--in_port", default=5553, type=int, help="Port to connect to server/broker"
-    # )
-    # parser.add_argument(
-    #     "--in_bind",
-    #     action="store_true",
-    #     help="Whether or not the input connection binds here",
-    # )
-    # parser.add_argument(
-    #     "--out_host",
-    #     default="localhost",
-    #     type=str,
-    #     help="Hostname to connect output to",
-    # )
-    # parser.add_argument(
-    #     "--out_port", default=5554, type=int, help="Port to connect output data to"
-    # )
-    # parser.add_argument(
-    #     "--out_bind",
-    #     action="store_true",
-    #     help="Whether or not the output connection binds here",
-    # )
-    # parser.add_argument("--verbose", action="store_true")
-
-    # args = parser.parse_args()
-    # main(args)
