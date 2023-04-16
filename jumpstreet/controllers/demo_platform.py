@@ -6,8 +6,8 @@ import time
 
 
 def start_process_from_config(target, config):
-    process = multiprocessing.Process(target=target, args=config)
-    process.daemon = True
+    process = multiprocessing.Process(target=target, args=[config])
+    process.daemon = False
     process.start()
     return process
 
@@ -27,10 +27,10 @@ class DemoController():
         e.g., if using interprocess communication, the binding
         socket MUST be started first.
         """
-        self.processes.append(jumpstreet.broker.start_process_from_config(jumpstreet.broker.main, self.broker))
-        self.processes.append(jumpstreet.detection.start_process_from_config(jumpstreet.detection.main, self.detection))
-        self.processes.append(jumpstreet.tracking.start_process_from_config(jumpstreet.tracking.main, self.tracking))
-        self.processes.append(jumpstreet.frontend.start_process_from_config(jumpstreet.frontend.simple.main, self.frontend))
+        self.processes.append(start_process_from_config(jumpstreet.broker.main, self.broker))
+        self.processes.append(start_process_from_config(jumpstreet.detection.main, self.detection))
+        self.processes.append(start_process_from_config(jumpstreet.tracking.main, self.tracking))
+        self.processes.append(start_process_from_config(jumpstreet.frontend.simple.main, self.frontend))
         while True:
             time.sleep(0.1)
 
@@ -54,8 +54,9 @@ def main(args):
         detection=detection, tracking=tracking, frontend=frontend)
     try:
         control.start()
-    except:
+    except Exception as e:
         control.end()
+        raise e
 
 
 if __name__ == "__main__":

@@ -9,10 +9,11 @@ from types import SimpleNamespace
 
 
 class BaseClass:
-    def __init__(self, name, identifier, verbose=False) -> None:
+    def __init__(self, name, identifier, verbose=False, debug=False) -> None:
         self.name = name
         self.identifier = identifier
         self.verbose = verbose
+        self.debug = debug
         self.frontend = None
         self.backend = None
 
@@ -43,13 +44,13 @@ class BaseClass:
             name = self.NAME
         except AttributeError as e:
             name = self.name
-        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
+        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=flush)
         sys.stdout.flush()
 
 
 class TimeMonitor(BaseClass):
     def __init__(self, maxlen=10) -> None:
-        super().__init__("time-monitor", 0, verbose=True)
+        super().__init__("time-monitor", 0, verbose=True, debug=False)
         self.dt_history = deque([], maxlen=maxlen)
         self.last_t = None
 

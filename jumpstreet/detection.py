@@ -31,13 +31,14 @@ class ObjectDetector(BaseClass):
         model,
         threshold,
         verbose=False,
+        debug=False,
     ) -> None:
         """Set up front and back ends
 
         Front end: req
         Back end: pub
         """
-        super().__init__(name=self.NAME, identifier=identifier, verbose=verbose)
+        super().__init__(name=self.NAME, identifier=identifier, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
             self, context, "frontend", zmq.REQ, frontend.host, frontend.port, BIND=frontend.bind,
         )
@@ -45,11 +46,13 @@ class ObjectDetector(BaseClass):
             self, context, "backend", zmq.PUB, backend.host, backend.port, BIND=backend.bind,
         )
         self.set_model(dataset, model, threshold)
-        self.print("initialized perception model!", end="\n")
+        if self.verbose:
+            self.print("initialized perception model!", end="\n")
 
         # -- ready to go (need this!)
         self.frontend.send(b"READY-camera")
-        self.print(f"ready to start", end="\n")
+        if self.verbose:
+            self.print(f"ready to start", end="\n")
 
     def poll(self):
         """Poll for messages
@@ -96,6 +99,7 @@ class ImageObjectDetector(ObjectDetector):
         model="fasterrcnn",
         threshold=0.5,
         verbose=False,
+        debug=False,
     ) -> None:
         super().__init__(
             context,
@@ -106,6 +110,7 @@ class ImageObjectDetector(ObjectDetector):
             model,
             threshold,
             verbose,
+            debug,
         )
 
     def set_model(self, dataset, model, threshold):
@@ -138,7 +143,7 @@ class ImageObjectDetector(ObjectDetector):
                 raise NotImplementedError(metadata["msg"]["channel_order"])
             timestamp = metadata["msg"]["timestamp"]
             frame = metadata["msg"]["frame"]
-            if self.verbose:
+            if self.debug:
                 self.print(
                     f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}", end="\n"
                 )
@@ -221,6 +226,7 @@ def main_single(
     model,
     threshold,
     verbose,
+    debug,
 ):
     """Runs polling on a single worker"""
     context = SerializingContext()
@@ -239,6 +245,7 @@ def main_single(
         model=model,
         threshold=threshold,
         verbose=verbose,
+        debug=debug,
     )
     try:
         while True:
@@ -268,6 +275,7 @@ def main(config):
             model=config.workers.image.model,
             threshold=config.workers.image.threshold,
             verbose=config.verbose,
+            debug=config.debug,
         )
         procs.append(proc)
 
@@ -281,6 +289,7 @@ def main(config):
             model=config.workers.radar_model,
             threshold=config.workers.radar_threshold,
             verbose=config.verbose,
+            debug=config.debug,
         )
         procs.append(proc)
 

@@ -23,12 +23,12 @@ class LoadBalancingBroker(BaseClass):
         FRONTEND=5550,
         BACKEND=5551,
         verbose=False,
+        debug=False,
         identifier=0,
         *args,
         **kwargs,
     ) -> None:
-        super().__init__(self.NAME, identifier)
-        self.verbose = verbose
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
             self, context, "frontend", zmq.ROUTER, "*", FRONTEND, BIND=True
         )
@@ -99,9 +99,9 @@ class LoadBalancingBrokerXSub(BaseClass):
         backend_other,
         identifier=0,
         verbose=False,
+        debug=False
     ) -> None:
-        super().__init__(self.NAME, identifier)
-        self.verbose = verbose
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
             self, context, "frontend", zmq.XSUB, frontend.host, frontend.port, BIND=frontend.bind,
         )
@@ -127,7 +127,6 @@ class LoadBalancingBrokerXSub(BaseClass):
         if self.backend in socks:
             request = self.backend.recv_multipart()
             worker, empty, client = request[:3]  # TODO: add worker_type
-            print(client)
             worker_type = client.decode().split('-')[1]
             self.workers[worker_type].append(worker)
             for k in self.workers:
@@ -150,14 +149,14 @@ class LoadBalancingBrokerXSub(BaseClass):
             # -- pass on the data
             if pass_data:
                 # -- primary worker
-                if self.verbose:
+                if self.debug:
                     self.print(f"received {data_type} array of size {array.shape}", end="\n")
                 if self.backend_ready[data_type]:
                     worker = self.workers[data_type].pop(0)
                     client = f"OK-{data_type}".encode()  # TODO: why is this needed???
                     self.backend.send_array_envelope(worker, client, msg, array, copy=False)
                 else:
-                    if self.verbose:
+                    if self.debug:
                         self.print(f"broker had {data_type} data to send but no worker ready", end="\n")
 
                 # -- secondary xpub (for display only)
@@ -200,6 +199,7 @@ def main(config):
         frontend=config.frontend,
         backend=config.backend,
         verbose=config.verbose,
+        debug=config.debug,
         backend_other=config.backend_other
     )
     try:

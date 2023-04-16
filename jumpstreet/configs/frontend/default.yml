@@ -16,3 +16,4 @@ display:
   height: 1024
 
 verbose: True
+debug: False

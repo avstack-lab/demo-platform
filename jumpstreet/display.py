@@ -31,8 +31,8 @@ from jumpstreet.utils import BaseClass, TimeMonitor
 class Display(BaseClass):
     NAME = "display"
 
-    def __init__(self, identifier, runnable=None, verbose=False) -> None:
-        super().__init__(self.NAME, identifier, verbose)
+    def __init__(self, identifier, runnable=None, verbose=False, debug=False) -> None:
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.runnable = runnable
 
     def start(self):
@@ -45,8 +45,8 @@ class Display(BaseClass):
 
 
 class ConfirmationDisplay(Display):
-    def __init__(self, identifier=0, verbose=False) -> None:
-        super().__init__(identifier, main_loop=None, verbose=verbose)
+    def __init__(self, identifier=0, verbose=False, debug=False) -> None:
+        super().__init__(identifier, main_loop=None, verbose=verbose, debug=debug)
 
     def start(self):
         self.print("started display process")
@@ -54,7 +54,7 @@ class ConfirmationDisplay(Display):
     def update(self, images):
         ks = images.keys()
         lvs = [len(imgs) for imgs in images.values()]
-        if self.verbose:
+        if self.debug:
             self.print(
                 f"received image batch with keys {ks}" + f"and value lens {lvs} images"
             )
@@ -62,9 +62,9 @@ class ConfirmationDisplay(Display):
 
 class StreamThrough(Display):
     def __init__(
-        self, main_loop, width=800, height=800, identifier=0, verbose=False
+        self, main_loop, width=800, height=800, identifier=0, verbose=False, debug=False
     ) -> None:
-        super().__init__(identifier, verbose=verbose)
+        super().__init__(identifier, verbose=verbose, debug=debug)
         self.imageViewer = QImageViewer(width, height)
         self.thread = QThread()
         self.worker = main_loop
@@ -78,7 +78,7 @@ class StreamThrough(Display):
         self.thread.start()
 
     def update(self, image_buffer):
-        if self.verbose:
+        if self.debug:
             print("received image from worker")
         assert len(image_buffer) == 1, "For now only 1 image at a time"
         self.imageViewer.show_image_from_array(image_buffer[0])

@@ -19,3 +19,4 @@ broker:
   io_threads: 3
 
 verbose: True
+debug: False

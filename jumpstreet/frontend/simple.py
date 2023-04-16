@@ -27,12 +27,13 @@ class MainLoop(QObject):
     NAME = "frontend"
 
     def __init__(
-        self, display_cam_id, context, frontend_images, frontend_tracks, dt_delay=0.1, verbose=False
+        self, display_cam_id, context, frontend_images, frontend_tracks, dt_delay=0.1, verbose=False, debug=False,
     ):
         super().__init__()
         self.quit_flag = False
         self.display_cam_id = display_cam_id
         self.verbose = verbose
+        self.debug = debug
         self.identifier = 0
 
         # -- set up frontend data receivers
@@ -68,7 +69,7 @@ class MainLoop(QObject):
         self.video_buffer = BasicDataBuffer(max_size=30)
         self.track_buffer = BasicDataBuffer(max_size=30)
         self.muxer = jumpstreet.muxer.VideoTrackMuxer(
-            self.video_buffer, self.track_buffer, identifier=0, dt_delay=self.dt_delay, verbose=self.verbose
+            self.video_buffer, self.track_buffer, identifier=0, dt_delay=self.dt_delay, verbose=self.verbose, debug=self.debug,
         )
 
     def print(self, msg, end="", flush=True):
@@ -76,7 +77,7 @@ class MainLoop(QObject):
             name = self.NAME
         except AttributeError as e:
             name = self.name
-        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
+        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=flush)
 
     def run(self):
         # -- put the muxer process on a thread that executes at a certain rate
@@ -95,7 +96,7 @@ class MainLoop(QObject):
 
                     timestamp = msg["timestamp"]
                     frame = msg["frame"]
-                    if self.verbose:
+                    if self.debug:
                         self.print(f"received frame at time: {timestamp}", end="\n")
                     identifier = msg["identifier"]
                     image_data_container = DataContainer(
@@ -117,9 +118,9 @@ class MainLoop(QObject):
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
                     track_data_container = get_data_container_from_line(
-                        data.decode(), identifier_override=config.display.camera_id
+                        data.decode(), identifier_override=self.display_cam_id,
                     )
-                    if self.verbose:
+                    if self.debug:
                         self.print(f"received tracks at time: {track_data_container.timestamp}", end="\n")
                     self.track_buffer.push(track_data_container)
 
@@ -128,7 +129,7 @@ class MainLoop(QObject):
                 if (self.display_cam_id in image_out) and len(
                     image_out[self.display_cam_id]
                 ) > 0:
-                    if self.verbose:
+                    if self.debug:
                         self.print(f"emitting image to display", end="\n")
                     self.update.emit([image_out[self.display_cam_id].data])
     
@@ -147,7 +148,8 @@ def main(config):
         context=context,
         frontend_images=config.frontend_images,
         frontend_tracks=config.frontend_tracks,
-        verbose=config.verbose
+        verbose=config.verbose,
+        debug=config.debug,
     )
 
     app = QApplication(sys.argv)
@@ -157,6 +159,7 @@ def main(config):
         height=config.display.height / 2,
         identifier=0,
         verbose=config.verbose,
+        debug=config.debug,
     )
     display.start()
     sys.exit(app.exec())

@@ -65,8 +65,9 @@ class Sensor(BaseClass):
         configs,
         identifier,
         verbose=False,
+        debug=False,
     ) -> None:
-        super().__init__(self.NAME, identifier, verbose)
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
 
         if sensor_type in ACCEPTABLE_SENSOR_TYPES:
             self.sensor_type = sensor_type
@@ -97,6 +98,7 @@ class Radar(Sensor):
         configs,
         identifier,
         verbose=False,
+        debug=False,
         *args,
         **kwargs,
     ) -> None:
@@ -108,6 +110,7 @@ class Radar(Sensor):
             configs,
             identifier,
             verbose,
+            debug,
         )
         self.radar = None
         self.frame = 0
@@ -148,7 +151,7 @@ class Radar(Sensor):
                     "extrinsics":[0, 0, 0, 0, 0],
                 }
                 self.backend.send_array(razelrrt, msg, False)
-                if self.verbose:
+                if self.debug:
                     self.print(
                         f"sending data, frame: {msg['frame']:4d}, timestamp: {msg['timestamp']:.4f}",
                         end="\n",
@@ -156,7 +159,7 @@ class Radar(Sensor):
                 self.frame += 1
             except KeyboardInterrupt:
                 self.radar.streamer.stop_serial_stream()
-                if self.verbose:
+                if self.verbose or self.debug:
                     print("Radar.stream_serial: stopping serial stream")
                 break
 
@@ -173,6 +176,7 @@ class Camera(Sensor):
         configs,
         identifier,
         verbose=False,
+        debug=False,
         *args,
         **kwargs,
     ) -> None:
@@ -184,6 +188,7 @@ class Camera(Sensor):
             configs,
             identifier,
             verbose=verbose,
+            debug=debug,
         )
 
         self.handle = None
@@ -278,7 +283,7 @@ class Camera(Sensor):
                 img = np.ascontiguousarray(compressed_frame)
 
                 self.backend.send_array(img, msg, False)
-                if self.verbose:
+                if self.debug:
                     self.print(
                         f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
                         end="\n",
@@ -375,7 +380,8 @@ def main(args, configs):
             args.sensor_type,
             configs[args.config],
             configs[args.config]["name"],
-            verbose=args.verbose
+            verbose=args.verbose,
+            debug=args.debug,
     )
 
     # -- initialize and run sensor
@@ -451,6 +457,7 @@ if __name__ == "__main__":
         help="Backend port number (PUB)",
     )
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
     main(args, configs)

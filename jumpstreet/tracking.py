@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import multiprocessing
 import zmq
 from avstack.datastructs import DelayManagedDataBuffer
 from avstack.modules.perception.detections import get_data_container_from_line
@@ -33,13 +32,14 @@ class ObjectTracker(BaseClass):
         backend,
         dt_delay=0.1,
         verbose=False,
+        debug=False,
     ) -> None:
         """Set up front and back ends
 
         Front end: sub
         Back end: pub
         """
-        super().__init__(name=self.NAME, identifier=1, verbose=verbose)
+        super().__init__(name=self.NAME, identifier=1, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
             self,
             context,
@@ -81,7 +81,7 @@ class ObjectTracker(BaseClass):
                 # for now, there can only be one key in the detections
                 assert len(detections_dict) == 1
                 detections = detections_dict[list(detections_dict.keys())[0]]
-                if self.verbose:
+                if self.debug:
                     self.print(
                         f"Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}",
                         end="\n",
@@ -92,7 +92,7 @@ class ObjectTracker(BaseClass):
                     frame=detections.frame,
                     identifier="tracker-0",
                 )
-                if self.verbose:
+                if self.debug:
                     self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
                 tracks = format_data_container_as_string(tracks).encode()
 
@@ -109,6 +109,7 @@ def main(config):
         config.frontend,
         config.backend,
         verbose=config.verbose,
+        debug=config.debug,
     )
 
     try:
