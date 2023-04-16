@@ -69,8 +69,8 @@ tracking: $(INSTALL_STAMP)
 frontend: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/frontend/simple.py --config frontend/default.yml
 
-.PHONY: controller
-controller: $(INSTALL_STAMP)
+.PHONY: demo_platform
+demo_platform: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/controllers/demo_platform.py
 
 .PHONY: flir
