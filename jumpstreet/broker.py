@@ -4,9 +4,11 @@ from __future__ import print_function
 
 import argparse
 import logging
+
 import zmq
+
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace
+from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
 class LoadBalancingBroker(BaseClass):
@@ -99,20 +101,38 @@ class LoadBalancingBrokerXSub(BaseClass):
         backend_other,
         identifier=0,
         verbose=False,
-        debug=False
+        debug=False,
     ) -> None:
         super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
-            self, context, "frontend", zmq.XSUB, frontend.host, frontend.port, BIND=frontend.bind,
+            self,
+            context,
+            "frontend",
+            zmq.XSUB,
+            frontend.host,
+            frontend.port,
+            BIND=frontend.bind,
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.ROUTER, backend.host, backend.port, BIND=backend.bind,
+            self,
+            context,
+            "backend",
+            zmq.ROUTER,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
         self.backend_xpub = init_some_end(
-            self, context, "backend-xpub", zmq.XPUB, backend.host, backend_other.port, BIND=backend_other.bind
+            self,
+            context,
+            "backend-xpub",
+            zmq.XPUB,
+            backend.host,
+            backend_other.port,
+            BIND=backend_other.bind,
         )
-        self.backend_ready = {"camera":False, "radar":False}
-        self.workers = {"camera":[], "radar":[]}
+        self.backend_ready = {"camera": False, "radar": False}
+        self.workers = {"camera": [], "radar": []}
         self.print(f"initializing poller...", end="")
         self.poller = zmq.Poller()
         self.poller.register(self.backend, zmq.POLLIN)
@@ -127,7 +147,7 @@ class LoadBalancingBrokerXSub(BaseClass):
         if self.backend in socks:
             request = self.backend.recv_multipart()
             worker, empty, client = request[:3]  # TODO: add worker_type
-            worker_type = client.decode().split('-')[1]
+            worker_type = client.decode().split("-")[1]
             self.workers[worker_type].append(worker)
             for k in self.workers:
                 if self.workers[k] and not self.backend_ready[k]:
@@ -150,14 +170,21 @@ class LoadBalancingBrokerXSub(BaseClass):
             if pass_data:
                 # -- primary worker
                 if self.debug:
-                    self.print(f"received {data_type} array of size {array.shape}", end="\n")
+                    self.print(
+                        f"received {data_type} array of size {array.shape}", end="\n"
+                    )
                 if self.backend_ready[data_type]:
                     worker = self.workers[data_type].pop(0)
                     client = f"OK-{data_type}".encode()  # TODO: why is this needed???
-                    self.backend.send_array_envelope(worker, client, msg, array, copy=False)
+                    self.backend.send_array_envelope(
+                        worker, client, msg, array, copy=False
+                    )
                 else:
                     if self.debug:
-                        self.print(f"broker had {data_type} data to send but no worker ready", end="\n")
+                        self.print(
+                            f"broker had {data_type} data to send but no worker ready",
+                            end="\n",
+                        )
 
                 # -- secondary xpub (for display only)
                 if data_type == "camera":
@@ -200,7 +227,7 @@ def main(config):
         backend=config.backend,
         verbose=config.verbose,
         debug=config.debug,
-        backend_other=config.backend_other
+        backend_other=config.backend_other,
     )
     try:
         while True:
@@ -213,10 +240,7 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize a broker")
-    parser.add_argument(
-        "--config",
-        default='broker/default.yml'
-    )
+    parser.add_argument("--config", default="broker/default.yml")
     args = parser.parse_args()
     config = config_as_namespace(args.config)
     main(config)

@@ -7,6 +7,8 @@ import os
 # NOTE: These two lines are VERY IMPORTANT -- they ensure qt
 # uses its own path to the graphics plugins and not the cv2 path
 import cv2
+
+
 os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 #################################################################
 

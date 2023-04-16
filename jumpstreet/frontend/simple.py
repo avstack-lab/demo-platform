@@ -9,17 +9,16 @@ import argparse
 import logging
 import sys
 
-from cv2 import IMREAD_COLOR, imdecode
 import numpy as np
 import zmq
+from avstack.datastructs import BasicDataBuffer, DataContainer
+from avstack.modules.tracking.tracks import get_data_container_from_line
+from cv2 import IMREAD_COLOR, imdecode
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 
 import jumpstreet
 from jumpstreet.utils import config_as_namespace
-
-from avstack.datastructs import BasicDataBuffer, DataContainer
-from avstack.modules.tracking.tracks import get_data_container_from_line
 
 
 class MainLoop(QObject):
@@ -27,7 +26,14 @@ class MainLoop(QObject):
     NAME = "frontend"
 
     def __init__(
-        self, display_cam_id, context, frontend_images, frontend_tracks, dt_delay=0.1, verbose=False, debug=False,
+        self,
+        display_cam_id,
+        context,
+        frontend_images,
+        frontend_tracks,
+        dt_delay=0.1,
+        verbose=False,
+        debug=False,
     ):
         super().__init__()
         self.quit_flag = False
@@ -69,7 +75,12 @@ class MainLoop(QObject):
         self.video_buffer = BasicDataBuffer(max_size=30)
         self.track_buffer = BasicDataBuffer(max_size=30)
         self.muxer = jumpstreet.muxer.VideoTrackMuxer(
-            self.video_buffer, self.track_buffer, identifier=0, dt_delay=self.dt_delay, verbose=self.verbose, debug=self.debug,
+            self.video_buffer,
+            self.track_buffer,
+            identifier=0,
+            dt_delay=self.dt_delay,
+            verbose=self.verbose,
+            debug=self.debug,
         )
 
     def print(self, msg, end="", flush=True):
@@ -118,10 +129,14 @@ class MainLoop(QObject):
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
                     track_data_container = get_data_container_from_line(
-                        data.decode(), identifier_override=self.display_cam_id,
+                        data.decode(),
+                        identifier_override=self.display_cam_id,
                     )
                     if self.debug:
-                        self.print(f"received tracks at time: {track_data_container.timestamp}", end="\n")
+                        self.print(
+                            f"received tracks at time: {track_data_container.timestamp}",
+                            end="\n",
+                        )
                     self.track_buffer.push(track_data_container)
 
                 # -- emit an image, subject to a delay factor
@@ -132,7 +147,7 @@ class MainLoop(QObject):
                     if self.debug:
                         self.print(f"emitting image to display", end="\n")
                     self.update.emit([image_out[self.display_cam_id].data])
-    
+
         except Exception as e:
             logging.warning(e, exc_info=True)
 
@@ -167,10 +182,7 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize a frontend display")
-    parser.add_argument(
-        "--config",
-        default='frontend/default.yml'
-    )
+    parser.add_argument("--config", default="frontend/default.yml")
     args = parser.parse_args()
     config = config_as_namespace(args.config)
     main(config)

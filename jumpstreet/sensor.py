@@ -15,9 +15,9 @@ import numpy as np
 import PySpin
 import rad
 import zmq
+from avstack.geometry.transformations import matrix_cartesian_to_spherical
 from context import SerializingContext
 from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
-from avstack.geometry.transformations import matrix_cartesian_to_spherical
 
 
 STOP_KEY = "q"
@@ -145,10 +145,10 @@ class Radar(Sensor):
                 # -- send across comms channel
                 timestamp = round(time.time() - t0, 9)
                 msg = {
-                    "timestamp":timestamp,
-                    "frame":self.frame,
-                    "identifier":self.identifier,
-                    "extrinsics":[0, 0, 0, 0, 0],
+                    "timestamp": timestamp,
+                    "frame": self.frame,
+                    "identifier": self.identifier,
+                    "extrinsics": [0, 0, 0, 0, 0],
                 }
                 self.backend.send_array(razelrrt, msg, False)
                 if self.debug:
@@ -367,21 +367,21 @@ class Camera(Sensor):
 def main(args, configs):
     # -- init sensor class
     context = SerializingContext()
-    if 'camera' in args.sensor_type:
+    if "camera" in args.sensor_type:
         SensorClass = Camera
-    elif 'radar' in args.sensor_type:
+    elif "radar" in args.sensor_type:
         SensorClass = Radar
     else:
         raise NotImplementedError(args.sensor_type)
     sensor = SensorClass(
-            context,
-            args.host,
-            args.backend,
-            args.sensor_type,
-            configs[args.config],
-            configs[args.config]["name"],
-            verbose=args.verbose,
-            debug=args.debug,
+        context,
+        args.host,
+        args.backend,
+        args.sensor_type,
+        configs[args.config],
+        configs[args.config]["name"],
+        verbose=args.verbose,
+        debug=args.debug,
     )
 
     # -- initialize and run sensor
@@ -432,8 +432,8 @@ if __name__ == "__main__":
             "config_file_name": "1443config.cfg",
             "CLI_port": "/dev/ttyACM0",
             "Data_port": "/dev/ttyACM1",
-            "refresh_rate": 50.0
-        }
+            "refresh_rate": 50.0,
+        },
     }
 
     parser = argparse.ArgumentParser("Initialize a Sensor")
@@ -441,7 +441,7 @@ if __name__ == "__main__":
         "--config",
         choices=list(configs.keys()),
         type=str,
-        help="Select the configuration to apply"
+        help="Select the configuration to apply",
     )
     parser.add_argument(
         "--sensor_type",

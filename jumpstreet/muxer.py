@@ -2,9 +2,10 @@ import logging
 import threading
 import time
 
-from jumpstreet.utils import BaseClass
-from avstack.datastructs import DataContainer, DelayManagedDataBuffer
 import cv2
+from avstack.datastructs import DataContainer, DelayManagedDataBuffer
+
+from jumpstreet.utils import BaseClass
 
 
 class VideoTrackMuxer(BaseClass):
@@ -13,7 +14,13 @@ class VideoTrackMuxer(BaseClass):
     NAME = "muxer-video-track"
 
     def __init__(
-        self, video_buffer, track_buffer, identifier, dt_delay=0.1, verbose=False, debug=False
+        self,
+        video_buffer,
+        track_buffer,
+        identifier,
+        dt_delay=0.1,
+        verbose=False,
+        debug=False,
     ) -> None:
         super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.video_buffer = video_buffer

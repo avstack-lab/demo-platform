@@ -1,11 +1,13 @@
+import json
+import os
+import sys
 import time
 from collections import deque
-import os, sys
-import numpy as np
-import zmq
-import yaml
-import json
 from types import SimpleNamespace
+
+import numpy as np
+import yaml
+import zmq
 
 
 class BaseClass:
@@ -68,25 +70,27 @@ class TimeMonitor(BaseClass):
                 self.print(f"FPS: {fps:4.2f},   FPS std: {1./std:2.3f}", end="\r")
 
 
-class SocketConfig():
+class SocketConfig:
     def __init__(self, config) -> None:
         self.host = config.host
         self.port = config.port
         self.bind = config.bind
 
 
-
-
 def config_as_namespace(config_file):
-    config_path = os.path.join(os.path.dirname(__file__),'configs', config_file)
+    config_path = os.path.join(os.path.dirname(__file__), "configs", config_file)
     if not os.path.exists(config_path):
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'configs', config_file)
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "configs", config_file
+        )
         if not os.path.exists(config_path):
             raise FileNotFoundError(config_file)
     with open(config_path, "r") as stream:
         config = yaml.safe_load(stream)
+
     def load_object(dct):
         return SimpleNamespace(**dct)
+
     ns = json.loads(json.dumps(config), object_hook=load_object)
     return ns
 

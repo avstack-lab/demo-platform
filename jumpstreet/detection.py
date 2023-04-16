@@ -5,9 +5,10 @@ import logging
 import multiprocessing
 from functools import partial
 from time import sleep
+
+import cv2
 import numpy as np
 import zmq
-import cv2
 from avstack.calibration import CameraCalibration
 from avstack.geometry import NominalOriginStandard
 from avstack.modules.perception.detections import (
@@ -16,8 +17,9 @@ from avstack.modules.perception.detections import (
 )
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from avstack.sensors import ImageData
+
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace
+from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
 class ObjectDetector(BaseClass):
@@ -38,12 +40,26 @@ class ObjectDetector(BaseClass):
         Front end: req
         Back end: pub
         """
-        super().__init__(name=self.NAME, identifier=identifier, verbose=verbose, debug=debug)
+        super().__init__(
+            name=self.NAME, identifier=identifier, verbose=verbose, debug=debug
+        )
         self.frontend = init_some_end(
-            self, context, "frontend", zmq.REQ, frontend.host, frontend.port, BIND=frontend.bind,
+            self,
+            context,
+            "frontend",
+            zmq.REQ,
+            frontend.host,
+            frontend.port,
+            BIND=frontend.bind,
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.PUB, backend.host, backend.port, BIND=backend.bind,
+            self,
+            context,
+            "backend",
+            zmq.PUB,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
         self.set_model(dataset, model, threshold)
         if self.verbose:
@@ -308,10 +324,7 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
-    parser.add_argument(
-        "--config",
-        default='detection/default.yml'
-    )
+    parser.add_argument("--config", default="detection/default.yml")
     args = parser.parse_args()
     config = config_as_namespace(args.config)
     main(config)

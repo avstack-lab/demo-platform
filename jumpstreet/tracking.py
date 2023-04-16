@@ -2,13 +2,14 @@
 
 import argparse
 import logging
+
 import zmq
 from avstack.datastructs import DelayManagedDataBuffer
 from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
 
-from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace
+from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
 def init_tracking_model(model):
@@ -51,7 +52,13 @@ class ObjectTracker(BaseClass):
             subopts=b"detections",
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.PUB, backend.host, backend.port, BIND=backend.bind,
+            self,
+            context,
+            "backend",
+            zmq.PUB,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
         self.n_dets = 0
         self.model = init_tracking_model(model)
@@ -123,10 +130,7 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
-    parser.add_argument(
-        "--config",
-        default='tracking/default.yml'
-    )
+    parser.add_argument("--config", default="tracking/default.yml")
     args = parser.parse_args()
     config = config_as_namespace(args.config)
     main(config)
