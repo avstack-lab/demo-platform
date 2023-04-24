@@ -7,10 +7,11 @@ import multiprocessing
 import os
 import time
 
+import cv2
 import numpy as np
 import zmq
 from cv2 import imread
-import cv2
+
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, init_some_end
 
@@ -136,9 +137,7 @@ class SensorDataReplayer(BaseClass):
 
     def _send_image_data(self, array, msg):
         # -- image compression
-        success, result = cv2.imencode(
-            ".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, 80]
-        )
+        success, result = cv2.imencode(".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, 80])
         if not success:
             raise RuntimeError("Error compressing image")
         compressed_frame = np.array(result)
@@ -199,9 +198,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize sensor replayer client")
-    parser.add_argument(
-        "--camera_id", default="camera_1", help="Identifier of the camera"
-    )
+    parser.add_argument("--camera_id", default="1", help="Identifier of the camera")
     parser.add_argument(
         "-n", "--nclients", type=int, default=1, help="Number of clients"
     )

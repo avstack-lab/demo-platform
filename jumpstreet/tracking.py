@@ -9,7 +9,7 @@ from avstack.modules.perception.detections import get_data_container_from_line
 from avstack.modules.tracking import tracker2d
 from avstack.modules.tracking.tracks import format_data_container_as_string
 
-from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
+from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
 def init_tracking_model(model):
@@ -29,33 +29,36 @@ class ObjectTracker(BaseClass):
         self,
         context,
         model,
-        IN_HOST,
-        IN_PORT,
-        OUT_HOST,
-        OUT_PORT,
-        IN_BIND=True,
-        OUT_BIND=True,
+        frontend,
+        backend,
         dt_delay=0.1,
         verbose=False,
+        debug=False,
     ) -> None:
         """Set up front and back ends
 
         Front end: sub
         Back end: pub
         """
-        super().__init__(name=self.NAME, identifier=1, verbose=verbose)
+        super().__init__(name=self.NAME, identifier=1, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
             self,
             context,
             "frontend",
             zmq.SUB,
-            IN_HOST,
-            IN_PORT,
-            BIND=IN_BIND,
+            frontend.host,
+            frontend.port,
+            BIND=frontend.bind,
             subopts=b"detections",
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.PUB, OUT_HOST, OUT_PORT, BIND=OUT_BIND
+            self,
+            context,
+            "backend",
+            zmq.PUB,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
         self.n_dets = 0
         self.model = init_tracking_model(model)
@@ -85,7 +88,7 @@ class ObjectTracker(BaseClass):
                 # for now, there can only be one key in the detections
                 assert len(detections_dict) == 1
                 detections = detections_dict[list(detections_dict.keys())[0]]
-                if self.verbose:
+                if self.debug:
                     self.print(
                         f"Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}",
                         end="\n",
@@ -96,7 +99,7 @@ class ObjectTracker(BaseClass):
                     frame=detections.frame,
                     identifier="tracker-0",
                 )
-                if self.verbose:
+                if self.debug:
                     self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
                 tracks = format_data_container_as_string(tracks).encode()
 
@@ -104,19 +107,16 @@ class ObjectTracker(BaseClass):
                 self.backend.send_multipart([b"tracks", tracks])
 
 
-def main(args):
+def main(config):
     """Run tracking algorithm"""
     context = zmq.Context.instance()
     tracker = ObjectTracker(
         context,
-        args.model,
-        args.in_host,
-        args.in_port,
-        args.out_host,
-        args.out_port,
-        args.in_bind,
-        args.out_bind,
-        verbose=args.verbose,
+        config.model,
+        config.frontend,
+        config.backend,
+        verbose=config.verbose,
+        debug=config.debug,
     )
 
     try:
@@ -130,38 +130,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize object detection workers")
-    parser.add_argument(
-        "--model",
-        default="sort",
-        choices=["passthrough", "sort"],
-        help="Tracking model selection",
-    )
-    parser.add_argument(
-        "--in_host", default="localhost", type=str, help="Hostname to connect to"
-    )
-    parser.add_argument(
-        "--in_port", default=5553, type=int, help="Port to connect to server/broker"
-    )
-    parser.add_argument(
-        "--in_bind",
-        action="store_true",
-        help="Whether or not the input connection binds here",
-    )
-    parser.add_argument(
-        "--out_host",
-        default="localhost",
-        type=str,
-        help="Hostname to connect output to",
-    )
-    parser.add_argument(
-        "--out_port", default=5554, type=int, help="Port to connect output data to"
-    )
-    parser.add_argument(
-        "--out_bind",
-        action="store_true",
-        help="Whether or not the output connection binds here",
-    )
-    parser.add_argument("--verbose", action="store_true")
-
+    parser.add_argument("--config", default="tracking/default.yml")
     args = parser.parse_args()
-    main(args)
+    config = config_as_namespace(args.config)
+    main(config)

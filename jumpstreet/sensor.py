@@ -15,9 +15,9 @@ import numpy as np
 import PySpin
 import rad
 import zmq
+from avstack.geometry.transformations import matrix_cartesian_to_spherical
 from context import SerializingContext
 from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
-from avstack.geometry.transformations import matrix_cartesian_to_spherical
 
 
 STOP_KEY = "q"
@@ -65,8 +65,9 @@ class Sensor(BaseClass):
         configs,
         identifier,
         verbose=False,
+        debug=False,
     ) -> None:
-        super().__init__(self.NAME, identifier, verbose)
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
 
         if sensor_type in ACCEPTABLE_SENSOR_TYPES:
             self.sensor_type = sensor_type
@@ -97,6 +98,7 @@ class Radar(Sensor):
         configs,
         identifier,
         verbose=False,
+        debug=False,
         *args,
         **kwargs,
     ) -> None:
@@ -108,6 +110,7 @@ class Radar(Sensor):
             configs,
             identifier,
             verbose,
+            debug,
         )
         self.radar = None
         self.frame = 0
@@ -142,13 +145,13 @@ class Radar(Sensor):
                 # -- send across comms channel
                 timestamp = round(time.time() - t0, 9)
                 msg = {
-                    "timestamp":timestamp,
-                    "frame":self.frame,
-                    "identifier":self.identifier,
-                    "extrinsics":[0, 0, 0, 0, 0],
+                    "timestamp": timestamp,
+                    "frame": self.frame,
+                    "identifier": self.identifier,
+                    "extrinsics": [0, 0, 0, 0, 0],
                 }
                 self.backend.send_array(razelrrt, msg, False)
-                if self.verbose:
+                if self.debug:
                     self.print(
                         f"sending data, frame: {msg['frame']:4d}, timestamp: {msg['timestamp']:.4f}",
                         end="\n",
@@ -156,7 +159,7 @@ class Radar(Sensor):
                 self.frame += 1
             except KeyboardInterrupt:
                 self.radar.streamer.stop_serial_stream()
-                if self.verbose:
+                if self.verbose or self.debug:
                     print("Radar.stream_serial: stopping serial stream")
                 break
 
@@ -173,6 +176,7 @@ class Camera(Sensor):
         configs,
         identifier,
         verbose=False,
+        debug=False,
         *args,
         **kwargs,
     ) -> None:
@@ -184,13 +188,14 @@ class Camera(Sensor):
             configs,
             identifier,
             verbose=verbose,
+            debug=debug,
         )
 
         self.handle = None
         self.streaming = False
 
     def initialize(self):
-        if self.type == "camera-flir-bfs":
+        if self.sensor_type == "camera-flir-bfs":
 
             ## Extract sensor configs for flir bfs
             cam_name = self.configuration.get("name", "NA")
@@ -278,7 +283,7 @@ class Camera(Sensor):
                 img = np.ascontiguousarray(compressed_frame)
 
                 self.backend.send_array(img, msg, False)
-                if self.verbose:
+                if self.debug:
                     self.print(
                         f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
                         end="\n",
@@ -286,7 +291,7 @@ class Camera(Sensor):
                 ptr.Release()
                 frame_counter += 1
 
-        elif self.type == "camera-rpi":
+        elif self.sensor_type == "camera-rpi":
             pass
         else:
             pass
@@ -294,7 +299,7 @@ class Camera(Sensor):
     def start_capture(self):
         print("entered start_capture() ")
 
-        if self.type == "camera-flir-bfs":
+        if self.sensor_type == "camera-flir-bfs":
             a = 700  # this is bogus...fix later...f*mx
             b = 700  # this is bofus...fix later...f*my
             u = self.image_dimensions[1] / 2
@@ -347,7 +352,7 @@ class Camera(Sensor):
                     )
                 frame_counter += 1
 
-        elif self.type == "camera-rpi":
+        elif self.sensor_type == "camera-rpi":
             pass
         else:
             pass
@@ -360,22 +365,24 @@ class Camera(Sensor):
 
 
 def main(args, configs):
+
     # -- init sensor class
     context = SerializingContext()
-    if 'camera' in args.sensor_type:
+    if "camera" in args.sensor_type:
         SensorClass = Camera
-    elif 'radar' in args.sensor_type:
+    elif "radar" in args.sensor_type:
         SensorClass = Radar
     else:
         raise NotImplementedError(args.sensor_type)
     sensor = SensorClass(
-            context,
-            args.host,
-            args.backend,
-            args.sensor_type,
-            configs[args.config],
-            configs[args.config]["name"],
-            verbose=args.verbose
+        context,
+        args.host,
+        args.backend,
+        args.sensor_type,
+        configs, 
+        configs["name"],
+        verbose=args.verbose,
+        debug=args.debug,
     )
 
     # -- initialize and run sensor
@@ -426,8 +433,8 @@ if __name__ == "__main__":
             "config_file_name": "1443config.cfg",
             "CLI_port": "/dev/ttyACM0",
             "Data_port": "/dev/ttyACM1",
-            "refresh_rate": 50.0
-        }
+            "refresh_rate": 50.0,
+        },
     }
 
     parser = argparse.ArgumentParser("Initialize a Sensor")
@@ -435,7 +442,7 @@ if __name__ == "__main__":
         "--config",
         choices=list(configs.keys()),
         type=str,
-        help="Select the configuration to apply"
+        help="Select the configuration to apply",
     )
     parser.add_argument(
         "--sensor_type",
@@ -451,6 +458,8 @@ if __name__ == "__main__":
         help="Backend port number (PUB)",
     )
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
+    sensor_data = configs[args.config]
 
-    main(args, configs)
+    main(args, sensor_data)

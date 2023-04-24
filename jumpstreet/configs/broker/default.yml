@@ -1,0 +1,22 @@
+---
+frontend:
+  host: "*"
+  port: 5550
+  bind: True
+
+backend:
+  host: localhost
+  port: 5551
+  bind: True
+
+backend_other:
+  host: localhost
+  port: 5552
+  bind: True
+
+broker:
+  type: lb_with_xsub_extra_xpub
+  io_threads: 3
+
+verbose: True
+debug: False

@@ -55,42 +55,29 @@ replay: $(INSTALL_STAMP)
 
 .PHONY: data_broker
 data_broker: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/broker.py \
-			lb_with_xsub_extra_xpub \
-			--frontend 5550 \
-			--backend 5551 \
-			--backend_other 5552 \
-			--verbose
+		$(POETRY) run python jumpstreet/broker.py --config broker/default.yml
 
-.PHONY: detection_workers
-detection_workers: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/object_detection.py \
-			--n_image_workers 2 --image_model fasterrcnn --image_dataset coco-person \
-			--n_radar_workers 0 --radar_model none --radar_dataset none \
-			--image_threshold 0.5 --radar_threshold 0.5 \
-			--in_host localhost --in_port 5551 \
-			--out_host localhost --out_port 5553 \
-			--verbose
+.PHONY: detection
+detection: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/detection.py --config detection/default.yml
 
-.PHONY: tracking_worker
-tracking_worker: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/object_tracking.py --model sort \
-			--in_host localhost --in_port 5553 --in_bind \
-			--out_host localhost --out_port 5554 --out_bind \
-			--verbose
+.PHONY: tracking
+tracking: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/tracking.py --config tracking/default.yml
 
 .PHONY: frontend
 frontend: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/frontend/simple.py \
-			--host localhost --port_tracks 5554 --port_images=5552 \
-			--display_cam_id camera_1 \
-			--width 1224 --height 1024
+		$(POETRY) run python jumpstreet/frontend/simple.py --config frontend/default.yml
+
+.PHONY: demo_platform
+demo_platform: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/controllers/demo_platform.py
 
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensor.py \
-			--sensor_type camera-flir-bfs
-			--config camera_1
+			--sensor_type camera-flir-bfs \
+			--config camera_1 \
 			--host 127.0.0.1 \
 			--backend 5550 \
 			--verbose \

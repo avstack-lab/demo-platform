@@ -1,15 +1,21 @@
+import json
+import os
+import sys
 import time
 from collections import deque
+from types import SimpleNamespace
 
 import numpy as np
+import yaml
 import zmq
 
 
 class BaseClass:
-    def __init__(self, name, identifier, verbose=False) -> None:
+    def __init__(self, name, identifier, verbose=False, debug=False) -> None:
         self.name = name
         self.identifier = identifier
         self.verbose = verbose
+        self.debug = debug
         self.frontend = None
         self.backend = None
 
@@ -40,12 +46,13 @@ class BaseClass:
             name = self.NAME
         except AttributeError as e:
             name = self.name
-        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=True)
+        print(f"::{name}-{self.identifier}::{msg}", end=end, flush=flush)
+        sys.stdout.flush()
 
 
 class TimeMonitor(BaseClass):
     def __init__(self, maxlen=10) -> None:
-        super().__init__("time-monitor", 0, verbose=True)
+        super().__init__("time-monitor", 0, verbose=True, debug=False)
         self.dt_history = deque([], maxlen=maxlen)
         self.last_t = None
 
@@ -61,6 +68,31 @@ class TimeMonitor(BaseClass):
                 fps = 1.0 / dt
                 std = np.std([1.0 / dt for dt in self.dt_history])
                 self.print(f"FPS: {fps:4.2f},   FPS std: {1./std:2.3f}", end="\r")
+
+
+class SocketConfig:
+    def __init__(self, config) -> None:
+        self.host = config.host
+        self.port = config.port
+        self.bind = config.bind
+
+
+def config_as_namespace(config_file):
+    config_path = os.path.join(os.path.dirname(__file__), "configs", config_file)
+    if not os.path.exists(config_path):
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "configs", config_file
+        )
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(config_file)
+    with open(config_path, "r") as stream:
+        config = yaml.safe_load(stream)
+
+    def load_object(dct):
+        return SimpleNamespace(**dct)
+
+    ns = json.loads(json.dumps(config), object_hook=load_object)
+    return ns
 
 
 def init_some_end(

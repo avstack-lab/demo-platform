@@ -5,11 +5,10 @@ from __future__ import print_function
 import argparse
 import logging
 
-import numpy as np
 import zmq
 
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end
+from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
 class LoadBalancingBroker(BaseClass):
@@ -26,12 +25,12 @@ class LoadBalancingBroker(BaseClass):
         FRONTEND=5550,
         BACKEND=5551,
         verbose=False,
+        debug=False,
         identifier=0,
         *args,
         **kwargs,
     ) -> None:
-        super().__init__(self.NAME, identifier)
-        self.verbose = verbose
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
             self, context, "frontend", zmq.ROUTER, "*", FRONTEND, BIND=True
         )
@@ -97,25 +96,43 @@ class LoadBalancingBrokerXSub(BaseClass):
     def __init__(
         self,
         context,
-        FRONTEND=5550,
-        BACKEND=5551,
-        BACKEND_OTHER=5552,
+        frontend,
+        backend,
+        backend_other,
         identifier=0,
         verbose=False,
+        debug=False,
     ) -> None:
-        super().__init__(self.NAME, identifier)
-        self.verbose = verbose
+        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.frontend = init_some_end(
-            self, context, "frontend", zmq.XSUB, "*", FRONTEND, BIND=True
+            self,
+            context,
+            "frontend",
+            zmq.XSUB,
+            frontend.host,
+            frontend.port,
+            BIND=frontend.bind,
         )
         self.backend = init_some_end(
-            self, context, "backend", zmq.ROUTER, "*", BACKEND, BIND=True
+            self,
+            context,
+            "backend",
+            zmq.ROUTER,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
         self.backend_xpub = init_some_end(
-            self, context, "backend-xpub", zmq.XPUB, "*", BACKEND_OTHER, BIND=True
+            self,
+            context,
+            "backend-xpub",
+            zmq.XPUB,
+            backend.host,
+            backend_other.port,
+            BIND=backend_other.bind,
         )
-        self.backend_ready = {"camera":False, "radar":False}
-        self.workers = {"camera":[], "radar":[]}
+        self.backend_ready = {"camera": False, "radar": False}
+        self.workers = {"camera": [], "radar": []}
         self.print(f"initializing poller...", end="")
         self.poller = zmq.Poller()
         self.poller.register(self.backend, zmq.POLLIN)
@@ -130,8 +147,7 @@ class LoadBalancingBrokerXSub(BaseClass):
         if self.backend in socks:
             request = self.backend.recv_multipart()
             worker, empty, client = request[:3]  # TODO: add worker_type
-            print(client)
-            worker_type = client.decode().split('-')[1]
+            worker_type = client.decode().split("-")[1]
             self.workers[worker_type].append(worker)
             for k in self.workers:
                 if self.workers[k] and not self.backend_ready[k]:
@@ -153,15 +169,22 @@ class LoadBalancingBrokerXSub(BaseClass):
             # -- pass on the data
             if pass_data:
                 # -- primary worker
-                if self.verbose:
-                    self.print(f"received {data_type} array of size {array.shape}", end="\n")
+                if self.debug:
+                    self.print(
+                        f"received {data_type} array of size {array.shape}", end="\n"
+                    )
                 if self.backend_ready[data_type]:
                     worker = self.workers[data_type].pop(0)
                     client = f"OK-{data_type}".encode()  # TODO: why is this needed???
-                    self.backend.send_array_envelope(worker, client, msg, array, copy=False)
+                    self.backend.send_array_envelope(
+                        worker, client, msg, array, copy=False
+                    )
                 else:
-                    if self.verbose:
-                        self.print(f"broker had {data_type} data to send but no worker ready", end="\n")
+                    if self.debug:
+                        self.print(
+                            f"broker had {data_type} data to send but no worker ready",
+                            end="\n",
+                        )
 
                 # -- secondary xpub (for display only)
                 if data_type == "camera":
@@ -187,23 +210,24 @@ class LoadBalancingBrokerXSub(BaseClass):
         self.backend_xpub.close()
 
 
-def init_broker(broker_type):
-    if broker_type.lower() == "lb":
+def init_broker(broker):
+    if broker.type.lower() == "lb":
         return LoadBalancingBroker
-    elif broker_type.lower() == "lb_with_xsub_extra_xpub":
+    elif broker.type.lower() == "lb_with_xsub_extra_xpub":
         return LoadBalancingBrokerXSub
     else:
-        raise NotImplementedError(broker_type)
+        raise NotImplementedError(broker.type)
 
 
-def main(args):
-    context = SerializingContext(args.io_threads)
-    broker = init_broker(args.broker)(
+def main(config):
+    context = SerializingContext(config.broker.io_threads)
+    broker = init_broker(config.broker)(
         context,
-        FRONTEND=args.frontend,
-        BACKEND=args.backend,
-        verbose=args.verbose,
-        BACKEND_OTHER=args.backend_other,
+        frontend=config.frontend,
+        backend=config.backend,
+        verbose=config.verbose,
+        debug=config.debug,
+        backend_other=config.backend_other,
     )
     try:
         while True:
@@ -216,27 +240,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize a broker")
-    parser.add_argument(
-        "broker",
-        choices=["lb", "lb_with_xsub_extra_xpub"],
-        type=str,
-        help="Selection of broker type",
-    )
-    parser.add_argument(
-        "--io_threads", type=int, default=3, help="Number of io threads for context"
-    )
-    parser.add_argument(
-        "--frontend", type=int, default=5550, help="Frontend port number (clients)"
-    )
-    parser.add_argument(
-        "--backend", type=int, default=5551, help="Backend port number (workers)"
-    )
-    parser.add_argument(
-        "--backend_other",
-        type=int,
-        help="Extra backend port (used only in select classes)",
-    )
-    parser.add_argument("--verbose", action="store_true")
-
+    parser.add_argument("--config", default="broker/default.yml")
     args = parser.parse_args()
-    main(args)
+    config = config_as_namespace(args.config)
+    main(config)
