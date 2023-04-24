@@ -76,8 +76,8 @@ demo_platform: $(INSTALL_STAMP)
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensor.py \
-			--sensor_type camera-flir-bfs
-			--config camera_1
+			--sensor_type camera-flir-bfs \
+			--config camera_1 \
 			--host 127.0.0.1 \
 			--backend 5550 \
 			--verbose \
