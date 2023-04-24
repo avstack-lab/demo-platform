@@ -233,8 +233,8 @@ class Camera(Sensor):
             #### --------------------------------------------------------------
 
             # TODO Fill this in later....
-            a = 700  # this is bogus...fix later...f*mx
-            b = 700  # this is bofus...fix later...f*my
+            fx = 1448  
+            fy = 1448 
             u = cam_width_px / 2
             v = cam_height_px / 2
             g = 0
@@ -242,7 +242,7 @@ class Camera(Sensor):
                 "timestamp": 0.0,
                 "frame": 0,
                 "identifier": self.identifier,
-                "intrinsics": [a, b, g, u, v],
+                "intrinsics": [fx, fy, g, u, v],
                 "channel_order": "rgb",
             }
 
@@ -264,6 +264,11 @@ class Camera(Sensor):
                 img = cv2.cvtColor(
                     arr, cv2.COLOR_BayerBG2BGR
                 )  # np.ndarray with d = (h, w, 3)
+
+                # -- used for calibration...
+                # cv2.imwrite("flir-bfs.jpg", img)
+                # print("saved image... ending program")
+                # break
 
                 # -- resize image before compression
                 new_h = int(img.shape[0] / self.configuration["resize_factor"])
@@ -300,8 +305,8 @@ class Camera(Sensor):
         print("entered start_capture() ")
 
         if self.sensor_type == "camera-flir-bfs":
-            a = 700  # this is bogus...fix later...f*mx
-            b = 700  # this is bofus...fix later...f*my
+            fx = 1448  
+            fy = 1448 
             u = self.image_dimensions[1] / 2
             v = self.image_dimensions[0] / 2
             g = 0
@@ -309,7 +314,7 @@ class Camera(Sensor):
                 "timestamp": 0.0,
                 "frame": 0,
                 "identifier": self.identifier,
-                "intrinsics": [a, b, g, u, v],
+                "intrinsics": [fx, fy, g, u, v],
                 "channel_order": "rgb",
                 "compression": "jpeg",
             }
