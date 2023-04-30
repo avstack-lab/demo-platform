@@ -7,7 +7,6 @@ Date: March 2023
 """
 
 import argparse
-import sys
 import time
 
 import cv2
@@ -17,7 +16,7 @@ import rad
 import zmq
 from avstack.geometry.transformations import matrix_cartesian_to_spherical
 from context import SerializingContext
-from utils import BaseClass, init_some_end, send_array_pubsub, send_jpg_pubsub
+from utils import BaseClass, init_some_end
 
 
 STOP_KEY = "q"
@@ -233,8 +232,8 @@ class Camera(Sensor):
             #### --------------------------------------------------------------
 
             # TODO Fill this in later....
-            fx = 1448  
-            fy = 1448 
+            fx = 1448
+            fy = 1448
             u = cam_width_px / 2
             v = cam_height_px / 2
             g = 0
@@ -305,8 +304,8 @@ class Camera(Sensor):
         print("entered start_capture() ")
 
         if self.sensor_type == "camera-flir-bfs":
-            fx = 1448  
-            fy = 1448 
+            fx = 1448
+            fy = 1448
             u = self.image_dimensions[1] / 2
             v = self.image_dimensions[0] / 2
             g = 0
@@ -384,7 +383,7 @@ def main(args, configs):
         args.host,
         args.backend,
         args.sensor_type,
-        configs, 
+        configs,
         configs["name"],
         verbose=args.verbose,
         debug=args.debug,

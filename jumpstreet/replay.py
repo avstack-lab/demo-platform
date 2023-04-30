@@ -12,7 +12,7 @@ import zmq
 from cv2 import imread
 
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace, TimeMonitor
+from jumpstreet.utils import BaseClass, TimeMonitor, config_as_namespace, init_some_end
 
 
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
@@ -177,7 +177,9 @@ def main(config, sensor_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize sensor replayer client")
     parser.add_argument("--config", default="sensors/MOT15-replay.yml")
-    parser.add_argument("--sensor_id", default="camera_1", help="Identifier of the camera")
+    parser.add_argument(
+        "--sensor_id", default="camera_1", help="Identifier of the camera"
+    )
     args = parser.parse_args()
     config = config_as_namespace(args.config)
     sensor_id = args.sensor_id
