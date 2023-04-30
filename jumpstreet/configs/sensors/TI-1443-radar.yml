@@ -7,7 +7,7 @@ DATA_port: "/dev/ttyACM1"
 cfg_file: "1443config.cfg"
 io_threads: 1
 backend:
-  transport: "tcp"
+  transport: "ipc"
   host: localhost
   port: 5550
   bind: False

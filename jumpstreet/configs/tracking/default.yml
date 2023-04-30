@@ -1,12 +1,12 @@
 ---
 frontend:
-  transport: "tcp"
+  transport: "ipc"
   host: localhost
   port: 5553
   bind: True
 
 backend:
-  transport: "tcp"
+  transport: "ipc"
   host: localhost
   port: 5554
   bind: True

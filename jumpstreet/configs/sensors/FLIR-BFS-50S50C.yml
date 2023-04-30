@@ -8,7 +8,7 @@ fps: 20
 interpolate: 4
 io_threads: 2
 backend:
-  transport: "tcp"
+  transport: "ipc"
   host: localhost
   port: 5550
   bind: False
