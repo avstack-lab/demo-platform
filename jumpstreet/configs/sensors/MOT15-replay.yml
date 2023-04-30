@@ -1,8 +1,10 @@
 ---
 type: "camera"
 sensor_class: "ReplayCamera"
-dataset: "ADL-Rundle-6"
-data_path: "data/MOT15/train/ADL-Rundle-6/img1"
+dataset: "MOT15"
+data_dir: "/data/tracking/MOT15/"
+split: "train"
+scene: "ADL-Rundle-6"
 serial: Null
 width: 1920
 height: 1080

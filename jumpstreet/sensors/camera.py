@@ -1,14 +1,12 @@
 import time
 import cv2
-import glob
-import os
 import logging
 import numpy as np
 import PySpin
 from .base import Sensor
 from avstack.calibration import CameraCalibration
 from jumpstreet.utils import TimeMonitor
-
+from avapi import get_scene_manager
 
 STOP_KEY = "q"
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
@@ -21,10 +19,9 @@ class NearRealTimeImageLoader:
     process to enable near-correct-time sending
     """
 
-    def __init__(self, image_paths, rate) -> None:
-        self.image_paths = image_paths
-        self.rate = rate
-        self.interval = 1.0 / rate
+    def __init__(self, dataset) -> None:
+        self.dataset = dataset
+        self.interval = 1.0 / dataset.framerate
         self.i_next_img = 0
         self.counter = 0
         self.last_load_time = 0
@@ -39,16 +36,15 @@ class NearRealTimeImageLoader:
             if dt_wait > 0:
                 time.sleep(dt_wait)
         t_pre_2 = time.time()
-        data = cv2.imread(self.image_paths[self.i_next_img])
-        channel_order = "bgr"  # most likely loads as BGR since cv2
+        img = self.dataset.get_image(self.dataset.frames[self.i_next_img], "main_camera")
         self.counter += 1
-        self.i_next_img = (self.i_next_img + 1) % len(self.image_paths)
+        self.i_next_img = (self.i_next_img + 1) % len(self.dataset)
         t_post = time.time()
         if self.t0 is None:
             self.t0 = t_post
         self.dt_last_load = t_post - t_pre_2
         self.next_target_send = self.t0 + self.counter * self.interval
-        return data, channel_order
+        return img
 
 
 class Camera(Sensor):
@@ -86,7 +82,9 @@ class Camera(Sensor):
         self.calibration = CameraCalibration(self.extrinsics, P, img_shape)
         self.jpg_compression_pct = config.jpg_compression_pct
 
-    def _send_image_data(self, array, ts, frame, channel_order):
+    def _send_image_data(self, img, ts, frame):
+        array = img.data
+        channel_order = img.calibration.channel_order
         msg = {
             "timestamp": ts,
             "frame": frame,
@@ -113,28 +111,21 @@ class ReplayCamera(Camera):
     """A camera that replays a dataset"""
     def __init__(self, context, backend, config, identifier, verbose=False, debug=False) -> None:
         super().__init__(context, backend, config, identifier, verbose, debug)
-        images = sorted(
-                [
-                    img
-                    for ext in img_exts
-                    for img in glob.glob(os.path.join(config.data_path, "*" + ext))
-                ]
-            )
-        if len(images) == 0:
-            raise RuntimeError(f"No images were found in {config.data_path}!")
-        self.fps = config.fps
-        self.image_loader = NearRealTimeImageLoader(image_paths=images, rate=self.fps)
+        SM = get_scene_manager(config.dataset, config.data_dir, config.split)
+        SD = SM.get_scene_dataset_by_name(config.scene)
+        self.dataset = SD
+        self.image_loader = NearRealTimeImageLoader(dataset=SD)
         self.time_monitor = TimeMonitor()
 
     def send(self):
-        data, channel_order = self.image_loader.load_next()
-        ts = self.image_loader.counter / self.fps
+        img = self.image_loader.load_next()
+        ts = self.image_loader.counter / self.dataset.framerate
         frame = self.image_loader.counter
         if self.debug:
             self.print(
                 f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n"
             )
-        self._send_image_data(data, ts, frame, channel_order)
+        self._send_image_data(img, ts, frame)
         self.time_monitor.trigger()
 
     def initialize(self):
