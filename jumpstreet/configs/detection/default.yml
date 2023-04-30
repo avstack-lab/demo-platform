@@ -1,17 +1,19 @@
 ---
 frontend:
+  transport: "tcp"
   host: localhost
   port: 5551
   bind: False
 
 backend:
+  transport: "tcp"
   host: localhost
   port: 5553
   bind: False
 
 workers:
   image:
-    n_workers: 2
+    n_workers: 3
     model: fasterrcnn
     dataset: coco-person
     threshold: 0.5

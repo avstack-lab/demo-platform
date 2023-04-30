@@ -10,7 +10,8 @@ fps: 30
 interpolate: Null
 io_threads: 2
 backend:
-  host: 127.0.0.1
+  transport: "tcp"
+  host: "localhost"
   port: 5550
   bind: False
 verbose: True

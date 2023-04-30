@@ -1,10 +1,12 @@
 ---
 frontend_images:
+  transport: "tcp"
   host: localhost
   port: 5552
   bind: False
 
 frontend_tracks:
+  transport: "tcp"
   host: localhost
   port: 5554
   bind: False

@@ -32,10 +32,10 @@ class DemoController:
             start_process_from_config(jumpstreet.broker.main, self.broker)
         )
         self.processes.append(
-            start_process_from_config(jumpstreet.detection.main, self.detection)
+            start_process_from_config(jumpstreet.tracking.main, self.tracking)
         )
         self.processes.append(
-            start_process_from_config(jumpstreet.tracking.main, self.tracking)
+            start_process_from_config(jumpstreet.detection.main, self.detection)
         )
         self.processes.append(
             start_process_from_config(jumpstreet.frontend.simple.main, self.frontend)

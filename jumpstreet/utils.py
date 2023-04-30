@@ -96,7 +96,7 @@ def config_as_namespace(config_file):
 
 
 def init_some_end(
-    cls, context, end_type, pattern, HOST, PORT, BIND=False, subopts=None
+    cls, context, end_type, pattern, TRANSPORT, HOST, PORT, BIND=False, subopts=None
 ):
     socket = context.socket(pattern)
     if BIND:
@@ -105,7 +105,12 @@ def init_some_end(
             cls.print(pstring, end="")
         else:
             print(pstring, end="")
-        socket.bind(f"tcp://*:{PORT}")
+        if TRANSPORT == "tcp":
+            socket.bind(f"{TRANSPORT}://*:{PORT}")
+        elif TRANSPORT == "ipc":
+            socket.bind(f"{TRANSPORT}://{HOST}:{PORT}")
+        else:
+            raise NotImplementedError
         print("done")
     else:
         pstring = f"creating {end_type} connection with {HOST}:{PORT}..."
@@ -113,7 +118,7 @@ def init_some_end(
             cls.print(pstring, end="")
         else:
             print(pstring, end="")
-        socket.connect(f"tcp://{HOST}:{PORT}")
+        socket.connect(f"{TRANSPORT}://{HOST}:{PORT}")
         print("done")
     if pattern == zmq.SUB:
         assert subopts is not None

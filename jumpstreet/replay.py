@@ -78,6 +78,7 @@ class SensorDataReplayer(BaseClass):
             context,
             "backend",
             pattern,
+            backend.transport,
             backend.host,
             backend.port,
             BIND=backend.bind,
