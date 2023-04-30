@@ -1,0 +1,15 @@
+---
+type: "camera"
+model: "FLIR-BFS-50S50C"
+serial: "22395929"
+width: 2448
+height: 2048
+fps: 20
+interpolate: 4
+io_threads: 2
+backend:
+  host: localhost
+  port: 5550
+  bind: False
+verbose: True
+debug: False

@@ -3,7 +3,6 @@
 import argparse
 import glob
 import logging
-import multiprocessing
 import os
 import time
 
@@ -13,7 +12,7 @@ import zmq
 from cv2 import imread
 
 from jumpstreet.context import SerializingContext
-from jumpstreet.utils import BaseClass, init_some_end
+from jumpstreet.utils import BaseClass, init_some_end, config_as_namespace, TimeMonitor
 
 
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
@@ -64,24 +63,24 @@ class SensorDataReplayer(BaseClass):
     def __init__(
         self,
         context,
-        HOST,
-        PORT,
+        backend,
         identifier,
+        rate,
         send_dir,
         pattern=zmq.PUB,
-        rate=10,
         verbose=False,
+        debug=False,
     ) -> None:
-        super().__init__(self.NAME, identifier=identifier, verbose=verbose)
+        super().__init__(self.NAME, identifier=identifier, verbose=verbose, debug=debug)
         self.pattern = pattern
         self.backend = init_some_end(
-            cls=self,
-            context=context,
-            end_type="backend",
-            pattern=pattern,
-            HOST=HOST,
-            PORT=PORT,
-            BIND=False,
+            self,
+            context,
+            "backend",
+            pattern,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
         images = sorted(
             [
@@ -94,6 +93,7 @@ class SensorDataReplayer(BaseClass):
             raise RuntimeError(f"No images were found in {send_dir}!")
         self.rate = rate
         self.image_loader = NearRealTimeImageLoader(image_paths=images, rate=rate)
+        self.time_monitor = TimeMonitor()
         if pattern == zmq.REQ:
             self._send_image_data(np.array([]), "READY")
             ack = self.backend.recv_multipart()
@@ -112,7 +112,7 @@ class SensorDataReplayer(BaseClass):
         # -- send data
         ts = self.image_loader.counter / self.rate
         frame = self.image_loader.counter
-        if self.verbose:
+        if self.debug:
             self.print(
                 f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n"
             )
@@ -125,14 +125,15 @@ class SensorDataReplayer(BaseClass):
             "intrinsics": [a, b, g, u, v],
         }
         self._send_image_data(data, msg)
+        self.time_monitor.trigger()
 
         # -- acknowledge
         if self.pattern == zmq.REQ:
-            if self.verbose:
+            if self.debug:
                 self.print("waiting for acknowledge...", end="")
             ack = self.backend.recv()
             assert ack == b"OK"
-            if self.verbose:
+            if self.debug:
                 print("done")
 
     def _send_image_data(self, array, msg):
@@ -151,24 +152,17 @@ class SensorDataReplayer(BaseClass):
             self.backend.send_array(array, msg, copy=False)
 
 
-def start_client(task, *args):
-    """Starting a client using multiproc"""
-    process = multiprocessing.Process(target=task, args=args)
-    process.daemon = True
-    process.start()
-
-
-def main_single(HOST, PORT, identifier, io_threads, send_rate, send_dir, verbose):
+def main(config, sensor_id):
     """Runs sending on a single client"""
-    context = SerializingContext(io_threads)
+    context = SerializingContext(config.io_threads)
     replayer = SensorDataReplayer(
         context,
-        HOST=HOST,
-        PORT=PORT,
-        identifier=identifier,
-        send_dir=send_dir,
-        rate=send_rate,
-        verbose=verbose,
+        backend=config.backend,
+        identifier=sensor_id,
+        rate=config.fps,
+        send_dir=config.data_path,
+        verbose=config.verbose,
+        debug=config.debug,
     )
     try:
         while True:
@@ -179,54 +173,11 @@ def main_single(HOST, PORT, identifier, io_threads, send_rate, send_dir, verbose
         replayer.close()
 
 
-def main(args):
-    """Run sensor replayer clients"""
-    for i in range(args.nclients):
-        start_client(
-            main_single,
-            args.host,
-            args.port,
-            args.camera_id,
-            args.io_threads,
-            args.send_rate,
-            args.send_dir,
-            args.verbose,
-        )
-    while True:
-        time.sleep(1)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Initialize sensor replayer client")
-    parser.add_argument("--camera_id", default="1", help="Identifier of the camera")
-    parser.add_argument(
-        "-n", "--nclients", type=int, default=1, help="Number of clients"
-    )
-    parser.add_argument(
-        "--host", default="127.0.0.1", type=str, help="Hostname to connect to"
-    )
-    parser.add_argument(
-        "--port", default=5550, type=int, help="Port to connect to server/broker"
-    )
-    parser.add_argument(
-        "--send_rate", default=10, type=int, help="Replay rate for sensor data"
-    )
-    parser.add_argument(
-        "--io_threads",
-        default=2,
-        type=int,
-        help="Number of input output threads for zmq context",
-    )
-    parser.add_argument(
-        "--send_dir",
-        type=str,
-        default="./data/ADL-Rundle-6/img1",
-        help="Directory for data replay",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-    )
-
+    parser.add_argument("--config", default="sensors/MOT15-replay.yml")
+    parser.add_argument("--sensor_id", default="camera_1", help="Identifier of the camera")
     args = parser.parse_args()
-    main(args)
+    config = config_as_namespace(args.config)
+    sensor_id = args.sensor_id
+    main(config, sensor_id)

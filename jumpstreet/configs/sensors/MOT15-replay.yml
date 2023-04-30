@@ -1,0 +1,17 @@
+---
+type: "camera"
+model: "replay"
+dataset: "ADL-Rundle-6"
+data_path: "data/MOT15/train/ADL-Rundle-6/img1"
+serial: Null
+width: 1920
+height: 1080
+fps: 30
+interpolate: Null
+io_threads: 2
+backend:
+  host: 127.0.0.1
+  port: 5550
+  bind: False
+verbose: True
+debug: False

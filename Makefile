@@ -50,8 +50,9 @@ test: $(INSTALL_STAMP)
 
 .PHONY: replay
 replay: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/replay.py -n 1 --send_dir $(DATA) --send_rate $(RATE)\
-		 	--host 127.0.0.1 --port 5550 --camera_id camera_1 --verbose
+		$(POETRY) run python jumpstreet/replay.py \
+			--config sensors/MOT15-replay.yml \
+			--sensor_id camera_1
 
 .PHONY: data_broker
 data_broker: $(INSTALL_STAMP)

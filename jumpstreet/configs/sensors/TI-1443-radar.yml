@@ -1,0 +1,14 @@
+---
+type: "radar"
+model: "TI-1443"
+refresh_rate: 50.0
+CLI_port: "/dev/ttyACM0"
+DATA_port: "/dev/ttyACM1"
+cfg_file: "1443config.cfg"
+io_threads: 1
+backend:
+  host: localhost
+  port: 5550
+  bind: False
+verbose: True
+debug: False

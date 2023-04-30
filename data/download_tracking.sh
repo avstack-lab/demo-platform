@@ -14,5 +14,4 @@ wget -P $SAVEFOLDER $DATALINK
 unzip -o "${SAVEFOLDER}/${DATAFILE}" -d "$SAVEFOLDER"
 rm "${SAVEFOLDER}/${DATAFILE}"
 
-ln -s "${SAVEFOLDER}/${DATASUBFOLDER}" "./tracking"
-ln -s "${SAVEFOLDER}/${DATASUBFOLDER}/train/ADL-Rundle-6" "./ADL-Rundle-6"
+ln -s "${SAVEFOLDER}/${DATASUBFOLDER}" "./MOT15"
