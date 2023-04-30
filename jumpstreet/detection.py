@@ -9,7 +9,7 @@ from time import sleep
 import cv2
 import numpy as np
 import zmq
-from avstack.calibration import CameraCalibration
+from avstack.calibration import CameraCalibration, read_calibration_from_line
 from avstack.geometry import NominalOriginStandard
 from avstack.modules.perception.detections import (
     format_data_container_as_string,
@@ -166,9 +166,7 @@ class ImageObjectDetector(ObjectDetector):
                     f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}", end="\n"
                 )
             identifier = metadata["msg"]["identifier"]
-            a, b, g, u, v = metadata["msg"]["intrinsics"]
-            P = np.array([[a, g, u, 0], [0, b, v, 0], [0, 0, 1, 0]])
-            calib = CameraCalibration(NominalOriginStandard, P, metadata["shape"])
+            calib = read_calibration_from_line(metadata["msg"]["calibration"])
             image = ImageData(
                 timestamp=timestamp,
                 frame=frame,

@@ -50,7 +50,7 @@ test: $(INSTALL_STAMP)
 
 .PHONY: replay
 replay: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/replay.py \
+		$(POETRY) run python jumpstreet/sensors/run.py \
 			--config sensors/MOT15-replay.yml \
 			--sensor_id camera_1
 

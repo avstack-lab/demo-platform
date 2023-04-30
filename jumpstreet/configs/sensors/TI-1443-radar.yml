@@ -1,5 +1,6 @@
 ---
 type: "radar"
+sensor_class: "TiRadar"
 model: "TI-1443"
 refresh_rate: 50.0
 CLI_port: "/dev/ttyACM0"
