@@ -47,10 +47,16 @@ test: $(INSTALL_STAMP)
 demo_platform: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/controllers/demo_platform.py
 
-.PHONY: replay
-replay: $(INSTALL_STAMP)
+.PHONY: mot15_replay
+mot15_replay: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensors/run.py \
 			--config sensors/MOT15-replay.yml \
+			--sensor_id camera_1
+
+.PHONY: nuscenes_replay
+nuscenes_replay: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/nuScenes-camera-replay.yml \
 			--sensor_id camera_1
 
 .PHONY: flir

@@ -1,24 +1,24 @@
 ---
 type: "camera"
 sensor_class: "ReplayCamera"
-dataset: "MOT15"
-data_dir: "./data/MOT15/"
-split: "train"
-scene: "ADL-Rundle-6"
+dataset: "nuScenes"
+data_dir: "./data/nuScenes"
+split: "v1.0-mini"
+scene: "scene-0103"
 serial: Null
-width: 1920
-height: 1080
-fps: 30
+width: 1600
+height: 900
+fps: 2
 jpg_compression_pct: 80
 interpolate: Null
 io_threads: 2
 calibration:
-  channel_order: "bgr"
+  channel_order: "rgb"  # after flipping order in image loading
   intrinsics:
-    fx: 1448  # unsure...
-    fy: 1448  # unsure...
-    u: 960  # width / 2
-    v: 512  # height / 2
+    fx: 1252.81310
+    fy: 1252.81310
+    u: 826.588115
+    v: 469.984663
     g: 0
   extrinsics:
     dx: 0
