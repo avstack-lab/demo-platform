@@ -1,0 +1,34 @@
+---
+type: "camera"
+sensor_class: "PySpinCamera"
+model: "FLIR-BFS-50S50C"
+serial: "22395929"
+width: 2448
+height: 2048
+fps: 20
+jpg_compression_pct: 80
+interpolate: 4
+io_threads: 2
+calibration:
+  channel_order: "rgb"
+  intrinsics:
+    fx: 1448
+    fy: 1448
+    u: 1224  # width / 2
+    v: 1024  # height / 2
+    g: 0
+  extrinsics:
+    dx: 0
+    dy: 0
+    dz: 0
+    qx: 0
+    qy: 0
+    qz: 0
+backend:
+  transport: "ipc"
+  host: localhost
+  port: 5550
+  bind: False
+ip: 192.168.1.1
+verbose: True
+debug: False

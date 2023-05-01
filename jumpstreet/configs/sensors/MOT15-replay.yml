@@ -1,0 +1,36 @@
+---
+type: "camera"
+sensor_class: "ReplayCamera"
+dataset: "MOT15"
+data_dir: "/data/tracking/MOT15/"
+split: "train"
+scene: "ADL-Rundle-6"
+serial: Null
+width: 1920
+height: 1080
+fps: 30
+jpg_compression_pct: 80
+interpolate: Null
+io_threads: 2
+calibration:
+  channel_order: "bgr"
+  intrinsics:
+    fx: 1448  # unsure...
+    fy: 1448  # unsure...
+    u: 960  # width / 2
+    v: 512  # height / 2
+    g: 0
+  extrinsics:
+    dx: 0
+    dy: 0
+    dz: 0
+    qx: 0
+    qy: 0
+    qz: 0
+backend:
+  transport: "ipc"
+  host: "localhost"
+  port: 5550
+  bind: False
+verbose: True
+debug: False

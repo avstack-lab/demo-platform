@@ -1,9 +1,6 @@
 NAME := jumpstreet
 INSTALL_STAMP := .install.stamp
 POETRY := $(shell command -v poetry 2> /dev/null)
-PORT := 5556
-RATE := 30
-DATA := ./data/ADL-Rundle-6/img1
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -15,8 +12,6 @@ help:
 		@echo "  lint        run the code linters"
 		@echo "  format      reformat code"
 		@echo "  test        run all the tests"
-		@echo "  run         run the whole shebang"
-		@echo "  runreplay   run with replay testing"
 		@echo ""
 		@echo "Check the Makefile to know exactly what each target is doing."
 
@@ -48,39 +43,21 @@ format: $(INSTALL_STAMP)
 test: $(INSTALL_STAMP)
 		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 0 --cov $(NAME)
 
-.PHONY: replay
-replay: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/replay.py -n 1 --send_dir $(DATA) --send_rate $(RATE)\
-		 	--host 127.0.0.1 --port 5550 --camera_id camera_1 --verbose
-
-.PHONY: data_broker
-data_broker: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/broker.py --config broker/default.yml
-
-.PHONY: detection
-detection: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/detection.py --config detection/default.yml
-
-.PHONY: tracking
-tracking: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/tracking.py --config tracking/default.yml
-
-.PHONY: frontend
-frontend: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/frontend/simple.py --config frontend/default.yml
-
 .PHONY: demo_platform
 demo_platform: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/controllers/demo_platform.py
 
+.PHONY: replay
+replay: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/MOT15-replay.yml \
+			--sensor_id camera_1
+
 .PHONY: flir
 flir: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/sensor.py \
-			--sensor_type camera-flir-bfs \
-			--config camera_1 \
-			--host 127.0.0.1 \
-			--backend 5550 \
-			--verbose \
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/FLIR-BFS-50S50C.yml \
+			--sensor_id camera_1
 
 .PHONY: radar
 radar: $(INSTALL_STAMP)

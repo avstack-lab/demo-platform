@@ -109,6 +109,7 @@ class LoadBalancingBrokerXSub(BaseClass):
             context,
             "frontend",
             zmq.XSUB,
+            frontend.transport,
             frontend.host,
             frontend.port,
             BIND=frontend.bind,
@@ -118,6 +119,7 @@ class LoadBalancingBrokerXSub(BaseClass):
             context,
             "backend",
             zmq.ROUTER,
+            backend.transport,
             backend.host,
             backend.port,
             BIND=backend.bind,
@@ -127,7 +129,8 @@ class LoadBalancingBrokerXSub(BaseClass):
             context,
             "backend-xpub",
             zmq.XPUB,
-            backend.host,
+            backend_other.transport,
+            backend_other.host,
             backend_other.port,
             BIND=backend_other.bind,
         )
@@ -141,7 +144,7 @@ class LoadBalancingBrokerXSub(BaseClass):
         print("done")
 
     def poll(self):
-        socks = dict(self.poller.poll(timeout=1))
+        socks = dict(self.poller.poll(timeout=10))
 
         # --- handle worker activity on the backend
         if self.backend in socks:
