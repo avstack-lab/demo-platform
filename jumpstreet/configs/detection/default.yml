@@ -13,7 +13,7 @@ backend:
 
 workers:
   image:
-    n_workers: 3
+    n_workers: 2
     model: fasterrcnn
     dataset: coco-person
     threshold: 0.5

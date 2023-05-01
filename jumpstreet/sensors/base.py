@@ -1,7 +1,7 @@
 import zmq
 import numpy as np
 import quaternion
-from jumpstreet.utils import BaseClass, init_some_end
+from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
 from avstack.geometry import Origin
 
 
@@ -31,6 +31,7 @@ class Sensor(BaseClass):
         dx = np.array([config.calibration.extrinsics.dx, config.calibration.extrinsics.dy, config.calibration.extrinsics.dz])
         q = np.quaternion(*[config.calibration.extrinsics.qx, config.calibration.extrinsics.qy, config.calibration.extrinsics.qz])
         self.extrinsics = Origin(dx, q)
+        self.time_monitor = TimeMonitor()
 
     def initialize(self):
         raise NotImplementedError

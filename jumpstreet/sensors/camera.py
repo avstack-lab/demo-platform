@@ -4,9 +4,9 @@ import logging
 import numpy as np
 import PySpin
 from .base import Sensor
-from avstack.calibration import CameraCalibration
-from jumpstreet.utils import TimeMonitor
 from avapi import get_scene_manager
+from avstack.calibration import CameraCalibration
+from avstack.sensors import ImageData
 
 STOP_KEY = "q"
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
@@ -92,19 +92,21 @@ class Camera(Sensor):
             "identifier": self.identifier,
             "calibration": self.calibration.format_as_string(),
         }
+        # -- image interpolation
+        if (self.config.interpolate is not None) and (self.config.interpolate > 1):
+            new_h = int(array.shape[0] // self.config.interpolate)
+            new_w = int(array.shape[1] // self.config.interpolate)
+            array = cv2.resize(
+                array, (new_w, new_h), interpolation=cv2.INTER_AREA
+            )
+        
         # -- image compression
         success, result = cv2.imencode(".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, self.jpg_compression_pct])
         if not success:
             raise RuntimeError("Error compressing image")
         compressed_frame = np.array(result)
         array = np.ascontiguousarray(compressed_frame)
-        if array.flags["C_CONTIGUOUS"]:
-            # if array is already contiguous in memory just send it
-            self.backend.send_array(array, msg, copy=False)
-        else:
-            # else make it contiguous before sending
-            array = np.ascontiguousarray(array)
-            self.backend.send_array(array, msg, copy=False)
+        self.backend.send_array(array, msg, copy=False)
 
 
 class ReplayCamera(Camera):
@@ -115,7 +117,6 @@ class ReplayCamera(Camera):
         SD = SM.get_scene_dataset_by_name(config.scene)
         self.dataset = SD
         self.image_loader = NearRealTimeImageLoader(dataset=SD)
-        self.time_monitor = TimeMonitor()
 
     def send(self):
         img = self.image_loader.load_next()
@@ -167,165 +168,63 @@ class PySpinCamera(Camera):
         self.streaming = False
 
     def initialize(self):
-        if self.sensor_type == "camera-flir-bfs":
-            ## Extract sensor configs for flir bfs
-            cam_name = self.configuration.get("name", "NA")
-            cam_serial = self.configuration.get("serial", "NA")
-            cam_ip = self.configuration.get("ip", "NA")
-            cam_width_px = int(self.configuration.get("width_px", 0))
-            cam_height_px = int(self.configuration.get("height_px", 0))
-            cam_fps = int(self.configuration.get("fps", 0))
-            cam_frame_size_bytes = int(self.configuration.get("frame_size_bytes", 0))
-
-            ## Connect to camera
+        if "flir" in self.config.model.lower():
             system = PySpin.System.GetInstance()
             cam_list = system.GetCameras()
-            self.handle = cam_list.GetBySerial(cam_serial)
+            self.handle = cam_list.GetBySerial(self.config.serial)
             try:
                 self.handle.Init()
-                print(f"Successfully connected to {cam_name} via serial number")
+                print(f"Successfully connected to {self.config.model} via serial number")
             except:
-                raise RuntimeError(f"Unable to connect to {cam_name} via serial number")
+                raise RuntimeError(f"Unable to connect to {self.config.model} via serial number")
 
             ## Set the camera properties here
             self.handle.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
-            self.handle.Width.SetValue(cam_width_px)
-            self.handle.Height.SetValue(cam_height_px)
+            self.handle.Width.SetValue(self.config.width)
+            self.handle.Height.SetValue(self.config.height)
             self.handle.AcquisitionFrameRateEnable.SetValue(
                 True
             )  # enable changes to FPS
             self.handle.AcquisitionFrameRate.SetValue(
-                cam_fps
+                self.config.fps
             )  # max is 24fps for FLIR BFS
 
-            self.image_dimensions = (cam_height_px, cam_width_px)
+            self.image_dimensions = (self.config.height, self.config.width)
 
             #! Method should end here
             #### --------------------------------------------------------------
-            fx = 1448
-            fy = 1448
-            u = cam_width_px / 2
-            v = cam_height_px / 2
-            g = 0
-            msg = {
-                "timestamp": 0.0,
-                "frame": 0,
-                "identifier": self.identifier,
-                "intrinsics": [fx, fy, g, u, v],
-                "channel_order": "rgb",
-            }
-
             self.handle.BeginAcquisition()
             t0 = time.time()
-            frame_counter = 0
+            frame = -1
             while True:
                 ptr = self.handle.GetNextImage()
                 if ptr.IsIncomplete():
                     continue  # discard image
-                timestamp = round(time.time() - t0, 9)  # * 1e-9 # ms
-                msg["timestamp"] = timestamp
-                msg["frame"] = frame_counter
+                ts = round(time.time() - t0, 9)  # * 1e-9 # ms
+                frame += 1
 
                 # -- Version 1: successfully gets colored image as ndarray
                 arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
                     self.image_dimensions
                 )
-                img = cv2.cvtColor(
+                arr = cv2.cvtColor(
                     arr, cv2.COLOR_BayerBG2BGR
-                )  # np.ndarray with d = (h, w, 3)
-
-                # -- used for calibration...
-                # cv2.imwrite("flir-bfs.jpg", img)
-                # print("saved image... ending program")
-                # break
-
-                # -- resize image before compression
-                new_h = int(img.shape[0] / self.configuration["resize_factor"])
-                new_w = int(img.shape[1] / self.configuration["resize_factor"])
-                img_resized = cv2.resize(
-                    img, (new_w, new_h), interpolation=cv2.INTER_AREA
                 )
-                img = img_resized
+                img = ImageData(timestamp=ts, frame=frame, source_ID=self.identifier, data=arr, calibration=self.calibration)
 
-                # -- image compression
-                success, result = cv2.imencode(
-                    ".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80]
-                )
-                if not success:
-                    raise RuntimeError("Error compressing image")
-                compressed_frame = np.array(result)
-                img = np.ascontiguousarray(compressed_frame)
-
-                self.backend.send_array(img, msg, False)
+                # -- interpolate image before compression
                 if self.debug:
                     self.print(
-                        f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
-                        end="\n",
+                        f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n"
                     )
+                self._send_image_data(img, ts, frame)
+                self.time_monitor.trigger()
                 ptr.Release()
-                frame_counter += 1
-
-        elif self.sensor_type == "camera-rpi":
-            pass
         else:
-            pass
+            raise NotImplementedError(self.config.model)
 
     def start_capture(self):
-        print("entered start_capture() ")
-
-        if self.sensor_type == "camera-flir-bfs":
-            fx = 1448
-            fy = 1448
-            u = self.image_dimensions[1] / 2
-            v = self.image_dimensions[0] / 2
-            g = 0
-            msg = {
-                "timestamp": 0.0,
-                "frame": 0,
-                "identifier": self.identifier,
-                "intrinsics": [fx, fy, g, u, v],
-                "channel_order": "rgb",
-                "compression": "jpeg",
-            }
-
-            #! Method should end here
-            self.handle.BeginAcquisition()
-            t0 = 0
-            frame_counter = 0
-            while True:
-
-                ptr = self.handle.GetNextImage()
-
-                timestamp = float(ptr.GetTimeStamp()) * 1e-9  # ms
-                if frame_counter == 0:
-                    t0 = timestamp
-                msg["timestamp"] = round(timestamp - t0, 9)
-                print(timestamp)
-                msg["frame"] = frame_counter
-
-                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
-                    self.image_dimensions
-                )
-                img = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)  # np.ndarray
-                ret, jpeg_buffer = cv2.imencode(
-                    ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                )
-                if not ret:
-                    raise RuntimeError("Error compressing image")
-                compressed_frame = np.array(jpeg_buffer)
-                img = np.ascontiguousarray(compressed_frame)
-                self.backend.send_array(img, msg)
-                if self.verbose:
-                    self.print(
-                        f"sending data, frame: {frame_counter:4d}, timestamp: {timestamp:.4f}",
-                        end="\n",
-                    )
-                frame_counter += 1
-
-        elif self.sensor_type == "camera-rpi":
-            pass
-        else:
-            pass
+        raise RuntimeError('We cannot get here due to some unknown flir handle thing')
 
     def stop_capture(self):
         pass

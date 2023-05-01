@@ -144,7 +144,7 @@ class LoadBalancingBrokerXSub(BaseClass):
         print("done")
 
     def poll(self):
-        socks = dict(self.poller.poll(timeout=1))
+        socks = dict(self.poller.poll(timeout=10))
 
         # --- handle worker activity on the backend
         if self.backend in socks:
