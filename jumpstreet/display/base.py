@@ -132,10 +132,14 @@ class QImageViewer(QMainWindow):
                 return
             self.show_image(image)
 
-    def show_image_from_array(self, image):
+    def show_image_from_array(self, image, channel_order="bgr"):
         """Input is a numpy array"""
         h, w, _ = image.shape
-        qimage = QImage(image.data, w, h, 3 * w, QImage.Format_BGR888)
+        if channel_order == "bgr":
+            img_form = QImage.Format_BGR888
+        else:
+            raise NotImplementedError
+        qimage = QImage(image.data, w, h, 3 * w, img_form)
         self.show_image(qimage)
 
     def show_image(self, image):

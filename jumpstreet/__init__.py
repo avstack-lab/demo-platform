@@ -1,10 +1,9 @@
 from . import (
     broker,
     context,
-    controllers,
+    controller,
     detection,
     display,
-    frontend,
     muxer,
     tracking,
     trigger,

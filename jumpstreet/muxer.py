@@ -98,11 +98,11 @@ class VideoTrackMuxer(BaseClass):
 
                 # -- if they are within a threshold, mux!
                 if dt_select <= t_max_delta:
-                    image = video_bucket.pop()
-                    frame = image.frame
-                    timestamp = image.timestamp
+                    image_container = video_bucket.pop()
+                    frame = image_container.frame
+                    timestamp = image_container.timestamp
                     try:
-                        image_mux = self.mux(image, track_select)
+                        image_mux = self.mux(image_container, track_select)
                     except Exception as e:
                         logging.error(e)
                         raise e
@@ -111,11 +111,14 @@ class VideoTrackMuxer(BaseClass):
                     )
                     self.muxed_buffer.push(mux_data_container)
 
-    def mux(self, image, tracks):
+    def mux(self, img_container, tracks):
         """Mux together an image with track data using opencv"""
         color = (36, 255, 12)
         thickness = 2
+        image = img_container.data
         img = image.data
+        if image.calibration.channel_order == "rgb":
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if self.debug:
             self.print(
                 f"Frame: {image.frame:3d}: muxing {len(tracks):3d} tracks onto image",

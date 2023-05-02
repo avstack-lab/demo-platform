@@ -4,6 +4,7 @@ import os
 import time
 
 import jumpstreet
+from jumpstreet.utils import config_as_namespace
 
 
 def start_process_from_config(target, config):
@@ -13,13 +14,13 @@ def start_process_from_config(target, config):
     return process
 
 
-class DemoController:
-    def __init__(self, broker, detection, tracking, frontend) -> None:
+class Controller:
+    def __init__(self, broker, detection, tracking, display) -> None:
         self.processes = []
         self.broker = broker
         self.detection = detection
         self.tracking = tracking
-        self.frontend = frontend
+        self.display = display
 
     def start(self):
         """Start up all the processes
@@ -38,7 +39,7 @@ class DemoController:
             start_process_from_config(jumpstreet.detection.main, self.detection)
         )
         self.processes.append(
-            start_process_from_config(jumpstreet.frontend.simple.main, self.frontend)
+            start_process_from_config(jumpstreet.display.simple.main, self.display)
         )
         while True:
             time.sleep(0.1)
@@ -53,14 +54,13 @@ def config_path(config):
     return os.path.join(os.path.dirname(__file__), "../configs", config)
 
 
-def main(args):
+def main(config):
     """Start up the processes with configs"""
-    broker = jumpstreet.utils.config_as_namespace(args.broker_config)
-    detection = jumpstreet.utils.config_as_namespace(args.detection_config)
-    tracking = jumpstreet.utils.config_as_namespace(args.tracking_config)
-    frontend = jumpstreet.utils.config_as_namespace(args.frontend_config)
-    control = DemoController(
-        broker=broker, detection=detection, tracking=tracking, frontend=frontend
+    control = Controller(
+        broker=config_as_namespace(config.modules.broker.config),
+        detection=config_as_namespace(config.modules.detection.config),
+        tracking=config_as_namespace(config.modules.tracking.config),
+        display=config_as_namespace(config.modules.display.config),
     )
     try:
         control.start()
@@ -70,10 +70,8 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the demo platform controllers.")
-    parser.add_argument("--broker_config", default="broker/default.yml")
-    parser.add_argument("--detection_config", default="detection/default.yml")
-    parser.add_argument("--tracking_config", default="tracking/default.yml")
-    parser.add_argument("--frontend_config", default="frontend/default.yml")
+    parser = argparse.ArgumentParser(description="Run the demo platform controller.")
+    parser.add_argument("--config", help="Controller configuration parameters")
     args = parser.parse_args()
-    main(args)
+    config = config_as_namespace(args.config)
+    main(config)

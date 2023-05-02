@@ -43,14 +43,21 @@ format: $(INSTALL_STAMP)
 test: $(INSTALL_STAMP)
 		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 0 --cov $(NAME)
 
-.PHONY: demo_platform
-demo_platform: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/controllers/demo_platform.py
+.PHONY: controller
+controller: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/controller.py \
+			--config controller/camera.yml
 
-.PHONY: replay
-replay: $(INSTALL_STAMP)
+.PHONY: mot15_replay
+mot15_replay: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensors/run.py \
 			--config sensors/MOT15-replay.yml \
+			--sensor_id camera_1
+
+.PHONY: nuscenes_replay
+nuscenes_replay: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/nuScenes-camera-replay.yml \
 			--sensor_id camera_1
 
 .PHONY: flir

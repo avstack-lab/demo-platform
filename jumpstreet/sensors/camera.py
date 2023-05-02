@@ -1,12 +1,15 @@
-import time
-import cv2
 import logging
+import time
+
+import cv2
 import numpy as np
 import PySpin
-from .base import Sensor
 from avapi import get_scene_manager
 from avstack.calibration import CameraCalibration
 from avstack.sensors import ImageData
+
+from .base import Sensor
+
 
 STOP_KEY = "q"
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
@@ -36,7 +39,9 @@ class NearRealTimeImageLoader:
             if dt_wait > 0:
                 time.sleep(dt_wait)
         t_pre_2 = time.time()
-        img = self.dataset.get_image(self.dataset.frames[self.i_next_img], "main_camera")
+        img = self.dataset.get_image(
+            self.dataset.frames[self.i_next_img], "main_camera"
+        )
         self.counter += 1
         self.i_next_img = (self.i_next_img + 1) % len(self.dataset)
         t_post = time.time()
@@ -75,9 +80,7 @@ class Camera(Sensor):
         u = config.calibration.intrinsics.u
         v = config.calibration.intrinsics.v
         g = config.calibration.intrinsics.g
-        P = np.array([[fx,  g, u, 0],
-                      [ 0, fy, v, 0],
-                      [ 0,  0, 1, 0]])
+        P = np.array([[fx, g, u, 0], [0, fy, v, 0], [0, 0, 1, 0]])
         img_shape = (config.height, config.width)
         self.calibration = CameraCalibration(self.extrinsics, P, img_shape)
         self.jpg_compression_pct = config.jpg_compression_pct
@@ -96,12 +99,12 @@ class Camera(Sensor):
         if (self.config.interpolate is not None) and (self.config.interpolate > 1):
             new_h = int(array.shape[0] // self.config.interpolate)
             new_w = int(array.shape[1] // self.config.interpolate)
-            array = cv2.resize(
-                array, (new_w, new_h), interpolation=cv2.INTER_AREA
-            )
-        
+            array = cv2.resize(array, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
         # -- image compression
-        success, result = cv2.imencode(".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, self.jpg_compression_pct])
+        success, result = cv2.imencode(
+            ".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, self.jpg_compression_pct]
+        )
         if not success:
             raise RuntimeError("Error compressing image")
         compressed_frame = np.array(result)
@@ -111,7 +114,10 @@ class Camera(Sensor):
 
 class ReplayCamera(Camera):
     """A camera that replays a dataset"""
-    def __init__(self, context, backend, config, identifier, verbose=False, debug=False) -> None:
+
+    def __init__(
+        self, context, backend, config, identifier, verbose=False, debug=False
+    ) -> None:
         super().__init__(context, backend, config, identifier, verbose, debug)
         SM = get_scene_manager(config.dataset, config.data_dir, config.split)
         SD = SM.get_scene_dataset_by_name(config.scene)
@@ -144,6 +150,7 @@ class ReplayCamera(Camera):
 
 class PySpinCamera(Camera):
     """A camera based on the PySpin library"""
+
     def __init__(
         self,
         context,
@@ -174,9 +181,13 @@ class PySpinCamera(Camera):
             self.handle = cam_list.GetBySerial(self.config.serial)
             try:
                 self.handle.Init()
-                print(f"Successfully connected to {self.config.model} via serial number")
+                print(
+                    f"Successfully connected to {self.config.model} via serial number"
+                )
             except:
-                raise RuntimeError(f"Unable to connect to {self.config.model} via serial number")
+                raise RuntimeError(
+                    f"Unable to connect to {self.config.model} via serial number"
+                )
 
             ## Set the camera properties here
             self.handle.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
@@ -207,15 +218,20 @@ class PySpinCamera(Camera):
                 arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
                     self.image_dimensions
                 )
-                arr = cv2.cvtColor(
-                    arr, cv2.COLOR_BayerBG2BGR
+                arr = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)
+                img = ImageData(
+                    timestamp=ts,
+                    frame=frame,
+                    source_ID=self.identifier,
+                    data=arr,
+                    calibration=self.calibration,
                 )
-                img = ImageData(timestamp=ts, frame=frame, source_ID=self.identifier, data=arr, calibration=self.calibration)
 
                 # -- interpolate image before compression
                 if self.debug:
                     self.print(
-                        f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}", end="\n"
+                        f"sending data, frame: {frame:4d}, timestamp: {ts:.4f}",
+                        end="\n",
                     )
                 self._send_image_data(img, ts, frame)
                 self.time_monitor.trigger()
@@ -224,7 +240,7 @@ class PySpinCamera(Camera):
             raise NotImplementedError(self.config.model)
 
     def start_capture(self):
-        raise RuntimeError('We cannot get here due to some unknown flir handle thing')
+        raise RuntimeError("We cannot get here due to some unknown flir handle thing")
 
     def stop_capture(self):
         pass

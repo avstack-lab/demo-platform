@@ -1,8 +1,9 @@
-import zmq
 import numpy as np
 import quaternion
-from jumpstreet.utils import BaseClass, init_some_end, TimeMonitor
+import zmq
 from avstack.geometry import Origin
+
+from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
 
 
 class Sensor(BaseClass):
@@ -25,11 +26,30 @@ class Sensor(BaseClass):
         super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
         self.config = config
         self.backend = init_some_end(
-            self, context, "backend", zmq.PUB, backend.transport, backend.host, backend.port, BIND=backend.bind
+            self,
+            context,
+            "backend",
+            zmq.PUB,
+            backend.transport,
+            backend.host,
+            backend.port,
+            BIND=backend.bind,
         )
 
-        dx = np.array([config.calibration.extrinsics.dx, config.calibration.extrinsics.dy, config.calibration.extrinsics.dz])
-        q = np.quaternion(*[config.calibration.extrinsics.qx, config.calibration.extrinsics.qy, config.calibration.extrinsics.qz])
+        dx = np.array(
+            [
+                config.calibration.extrinsics.dx,
+                config.calibration.extrinsics.dy,
+                config.calibration.extrinsics.dz,
+            ]
+        )
+        q = np.quaternion(
+            *[
+                config.calibration.extrinsics.qx,
+                config.calibration.extrinsics.qy,
+                config.calibration.extrinsics.qz,
+            ]
+        )
         self.extrinsics = Origin(dx, q)
         self.time_monitor = TimeMonitor()
 
