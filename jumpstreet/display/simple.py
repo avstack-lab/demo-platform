@@ -8,20 +8,20 @@ Runs the front-end which includes:
 import argparse
 import logging
 import sys
+import os
 
 import numpy as np
 import zmq
+from avstack.calibration import read_calibration_from_line
+from avstack.datastructs import BasicDataBuffer, DataContainer
+from avstack.modules.tracking.tracks import get_data_container_from_line
+from avstack.sensors import ImageData
 from cv2 import IMREAD_COLOR, imdecode
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 
 import jumpstreet
 from jumpstreet.utils import config_as_namespace
-
-from avstack.sensors import ImageData
-from avstack.calibration import read_calibration_from_line
-from avstack.datastructs import BasicDataBuffer, DataContainer
-from avstack.modules.tracking.tracks import get_data_container_from_line
 
 
 class MainLoop(QObject):
@@ -174,7 +174,7 @@ def main(config):
     )
 
     app = QApplication(sys.argv)
-    display = jumpstreet.display.StreamThrough(
+    display = jumpstreet.display.base.StreamThrough(
         main_loop=main_loop,
         width=config.display.width / 2,
         height=config.display.height / 2,

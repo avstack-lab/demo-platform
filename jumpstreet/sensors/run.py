@@ -1,7 +1,8 @@
 import argparse
-from jumpstreet.sensors.camera import ReplayCamera, PySpinCamera
-from jumpstreet.sensors.radar import TiRadar
+
 from jumpstreet.context import SerializingContext
+from jumpstreet.sensors.camera import PySpinCamera, ReplayCamera
+from jumpstreet.sensors.radar import TiRadar
 from jumpstreet.utils import config_as_namespace
 
 
@@ -16,7 +17,7 @@ def main(config, sensor_id):
         SensorClass = TiRadar
     else:
         raise NotImplementedError(args.sensor_type)
-    
+
     # -- init sensor class
     sensor = SensorClass(
         context,

@@ -117,8 +117,7 @@ class VideoTrackMuxer(BaseClass):
         thickness = 2
         image = img_container.data
         img = image.data
-        print(image.calibration.channel_order)
-        if image.calibration.channel_order == 'rgb':
+        if image.calibration.channel_order == "rgb":
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if self.debug:
             self.print(

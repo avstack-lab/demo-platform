@@ -1,11 +1,14 @@
 import time
+
 import rad
 from avstack.geometry.transformations import matrix_cartesian_to_spherical
+
 from .base import Sensor
 
 
 class Radar(Sensor):
     NAME = "radar-sensor"
+
     def initialize(self):
         self.radar = rad.Radar(
             config_file_name=self.configuration["config_file_name"],
