@@ -1,0 +1,10 @@
+---
+modules:
+  broker:
+    config: "broker/default.yml"
+  detection:
+    config: "detection/radar.yml"
+  tracking:
+    config: "tracking/radar.yml"
+  display:
+    config: "display/default.yml"

@@ -7,7 +7,7 @@ width: 2448
 height: 2048
 fps: 20
 jpg_compression_pct: 80
-interpolate: 4
+interpolate: 2
 io_threads: 2
 calibration:
   channel_order: "rgb"

@@ -1,6 +1,7 @@
 NAME := jumpstreet
 INSTALL_STAMP := .install.stamp
 POETRY := $(shell command -v poetry 2> /dev/null)
+CCONF?=camera
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -46,7 +47,7 @@ test: $(INSTALL_STAMP)
 .PHONY: controller
 controller: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/controller.py \
-			--config controller/camera.yml
+			--config controller/$(CCONF).yml
 
 .PHONY: mot15_replay
 mot15_replay: $(INSTALL_STAMP)
@@ -60,17 +61,26 @@ nuscenes_replay: $(INSTALL_STAMP)
 			--config sensors/nuScenes-camera-replay.yml \
 			--sensor_id camera_1
 
+.PHONY: kitti_replay
+kitti_replay: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/kitti-camera-replay.yml \
+			--sensor_id camera_1
+
+.PHONY: carla_replay
+carla_replay: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/carla-camera-replay.yml \
+			--sensor_id camera_1
+
 .PHONY: flir
 flir: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/sensors/run.py \
 			--config sensors/FLIR-BFS-50S50C.yml \
 			--sensor_id camera_1
 
-.PHONY: radar
-radar: $(INSTALL_STAMP)
-		$(POETRY) run python jumpstreet/sensor.py \
-			--sensor_type ti-radar \
-			--config radar_1 \
-			--host 127.0.0.1 \
-			--backend 5550 \
-			--verbose \
+.PHONY: ti_radar
+ti_radar: $(INSTALL_STAMP)
+		$(POETRY) run python jumpstreet/sensors/run.py \
+			--config sensors/TI-1443-radar.yml \
+			--sensor_id radar_1

@@ -1,10 +1,13 @@
 import logging
 import threading
 import time
+from bisect import bisect
+import numpy as np
 
 import cv2
-from avstack.datastructs import DataContainer, DelayManagedDataBuffer
-
+from avstack.datastructs import DataContainer
+from avstack.geometry import NominalOriginStandard
+from avstack.modules.tracking import tracks as track_types
 from jumpstreet.utils import BaseClass
 
 
@@ -18,7 +21,6 @@ class VideoTrackMuxer(BaseClass):
         video_buffer,
         track_buffer,
         identifier,
-        dt_delay=0.1,
         verbose=False,
         debug=False,
     ) -> None:
@@ -27,9 +29,7 @@ class VideoTrackMuxer(BaseClass):
         self.track_buffer = track_buffer
         self.ready = False
         self.DataContainer = DataContainer
-        self.muxed_buffer = DelayManagedDataBuffer(
-            dt_delay=dt_delay, max_size=20, method="real-time"
-        )
+        self.t_last_muxed = -np.inf
 
     def start_continuous_process_thread(self, execute_rate=100, t_max_delta=0.05):
         """start up a thread for the processing function"""
@@ -50,74 +50,55 @@ class VideoTrackMuxer(BaseClass):
                 t_now - self.t_last_execute >= execute_dt - 1e-5
             ):
                 self.t_last_execute = t_now
-                self.process(t_max_delta)
+                self.process()
 
             # -- sleep approximately until the next trigger time
             time.sleep(max(0, execute_dt - (t_now - self.t_last_execute) - 1e-4))
 
     def emit_one(self):
-        return self.muxed_buffer.emit_one()
+        return self.video_buffer.emit_one()
 
-    def process(self, t_max_delta=0.05):
-        """Check the data buffer and add any muxed frames that we can"""
+    def process(self):
+        """Check the data buffer and add any muxed frames that we can
+        
+        Step 1: mux anything that we can
+            -- pop tracks and apply to image
+            -- keep that image on the buffer
+            -- tell that image we have already applied that sensor
+        Step 2: emit on a real-time schedule
+            -- Emit a frame once it hits the delay timing
+        """
         if self.debug:
             self.print(self.video_buffer, end="\n")
+            self.print(self.track_buffer, end="\n")
+        # self.print(len(self.video_buffer), end="\n")
+        # -- if we have tracks, let's mux if possible
         for video_id, video_bucket in self.video_buffer.data.items():
-            if self.track_buffer.has_data(video_id):
-                # -- select either the above or below track
-                track_bucket = self.track_buffer.data[video_id]
-                t_target = video_bucket.top()[0]
+            if len(video_bucket) > 0:
+                if self.track_buffer.has_data(video_id):
+                    track_bucket = self.track_buffer.data[video_id]
+                    # _ = track_bucket.pop_all_below(video_bucket.top()[0] - 1e-2)
+                    if len(track_bucket) > 0:
+                        # -- mux if we are out of date
+                        sorted_images = video_bucket.n_smallest(n=len(video_bucket))
+                        prior_images = [si[0] for si in sorted_images]
+                        data_images = [si[1] for si in sorted_images]
+                        sorted_tracks = track_bucket.n_smallest(n=len(track_bucket))
+                        prior_tracks = [st[0] for st in sorted_tracks]
+                        data_tracks = [st[1] for st in sorted_tracks]
+                        for i in range(len(prior_images)):  # going in order
+                            for j in range(len(prior_tracks)):  # going in order
+                                if prior_tracks[j] >= prior_images[i]:
+                                    self.mux(data_images[i], data_tracks[j])
+                                    self.t_last_muxed = max(self.t_last_muxed, prior_images[i])
+                                    break  # only mux an image once
 
-                # -- get below tracks (pop since we don't need anymore afterwards...maybe)
-                track_below = track_bucket.pop_all_below(t_target, with_priority=True)
-                if len(track_below) > 0:
-                    track_below = track_below[-1]
-                    dt_below = abs(t_target - track_below[0])
-                else:
-                    track_below = None
-
-                # -- get above track
-                if not track_bucket.empty():
-                    track_above = track_bucket.top()
-                    dt_above = abs(t_target - track_above[0])
-                else:
-                    track_above = None
-
-                # -- make a track selection
-                if track_below is None:
-                    track_select = track_above[1]
-                    dt_select = dt_above
-                elif track_above is None:
-                    track_select = track_below[1]
-                    dt_select = dt_below
-                else:
-                    track_select = (
-                        track_below[1] if dt_below <= dt_above else track_above[1]
-                    )
-                    dt_select = min(dt_below, dt_below)
-
-                # -- if they are within a threshold, mux!
-                if dt_select <= t_max_delta:
-                    image_container = video_bucket.pop()
-                    frame = image_container.frame
-                    timestamp = image_container.timestamp
-                    try:
-                        image_mux = self.mux(image_container, track_select)
-                    except Exception as e:
-                        logging.error(e)
-                        raise e
-                    mux_data_container = self.DataContainer(
-                        frame, timestamp, image_mux, video_id
-                    )
-                    self.muxed_buffer.push(mux_data_container)
-
-    def mux(self, img_container, tracks):
+    def mux(self, image, tracks):
         """Mux together an image with track data using opencv"""
         color = (36, 255, 12)
         thickness = 2
-        image = img_container.data
         img = image.data
-        if image.calibration.channel_order == "rgb":
+        if image.calibration.channel_order == 'rgb':
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if self.debug:
             self.print(
@@ -125,29 +106,45 @@ class VideoTrackMuxer(BaseClass):
                 end="\n",
             )
         for track in tracks:
-            box = track.box
-            # -- draw rectangle
-            img = cv2.rectangle(
-                img,
-                (int(box.xmin), int(box.ymin)),
-                (int(box.xmax), int(box.ymax)),
-                color,
-                thickness,
-            )
-            # -- draw text information
-            txt = f"{track.obj_type}, ID: {track.ID:3d}"
-            fontscale = 0.9
-            img = cv2.putText(
-                img,
-                txt,
-                (int(box.xmin), int(box.ymin - 10)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                fontscale,
-                color,
-                thickness,
-            )
+            if isinstance(track, track_types.BasicBoxTrack2D):
+                box = track.box
+                # -- draw rectangle
+                img = cv2.rectangle(
+                    img,
+                    (int(box.xmin), int(box.ymin)),
+                    (int(box.xmax), int(box.ymax)),
+                    color,
+                    thickness,
+                )
+                # -- draw text information
+                txt = f"{track.obj_type}, ID: {track.ID:3d}"
+                fontscale = 0.9
+                img = cv2.putText(
+                    img,
+                    txt,
+                    (int(box.xmin), int(box.ymin - 10)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    fontscale,
+                    color,
+                    thickness,
+                )
+            elif isinstance(track, track_types.XyFromRazTrack):
+                # -- project to image center
+                # TODO: incorporate the radar extrinsics as origin from rad calib
+                xyzh_cam = np.array([-0.5-track.position[1], 0, track.position[0], 1])  # HACK to account for shift
+                xy_img = image.calibration.P @ xyzh_cam
+                xy_img /= xy_img[2]
 
-        return img
+                # -- draw circle for point
+                img = cv2.circle(img,
+                                 (int(xy_img[0]), int(xy_img[1])),
+                                 radius=6, color=(0,255,0), thickness=-1)
+                
+                # -- draw text information
+                # TODO
+            else:
+                raise NotImplementedError(type(track))
+        image.data = img
 
     def __getattr__(self, attr):
         """Try to use muxed_buffer's attributes"""

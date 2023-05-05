@@ -13,7 +13,7 @@ def main(config, sensor_id):
         SensorClass = ReplayCamera
     elif config.sensor_class == "PySpinCamera":
         SensorClass = PySpinCamera
-    elif config.sensor_class:
+    elif config.sensor_class == "TiRadar":
         SensorClass = TiRadar
     else:
         raise NotImplementedError(args.sensor_type)

@@ -3,8 +3,8 @@ modules:
   broker:
     config: "broker/default.yml"
   detection:
-    config: "detection/default.yml"
+    config: "detection/camera.yml"
   tracking:
-    config: "tracking/default.yml"
+    config: "tracking/camera.yml"
   display:
     config: "display/default.yml"

@@ -4,6 +4,7 @@ frontend:
   host: "localhost"
   port: 5550
   bind: True
+  highwatermark: 5
 
 backend:
   transport: "ipc"

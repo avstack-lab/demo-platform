@@ -13,6 +13,7 @@ frontend_tracks:
 
 display:
   io_threads: 2
+  dt_delay: 0.30
   camera_id: camera_1
   width: 1224
   height: 1024

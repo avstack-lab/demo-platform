@@ -96,7 +96,7 @@ def config_as_namespace(config_file):
 
 
 def init_some_end(
-    cls, context, end_type, pattern, TRANSPORT, HOST, PORT, BIND=False, subopts=None
+    cls, context, end_type, pattern, TRANSPORT, HOST, PORT, BIND=False, subopts=None, HWM=None,
 ):
     socket = context.socket(pattern)
     if BIND:
@@ -123,6 +123,8 @@ def init_some_end(
     if pattern == zmq.SUB:
         assert subopts is not None
         socket.setsockopt(zmq.SUBSCRIBE, subopts)
+    if HWM is not None:
+        socket.setsockopt(zmq.RCVHWM, HWM)
     return socket
 
 

@@ -1,0 +1,36 @@
+---
+type: "camera"
+sensor_class: "ReplayCamera"
+dataset: "carla"
+data_dir: "./data/CARLA/carla-object-v1"
+split: ""
+scene: "run_2022_10_27_10:20:59"
+serial: Null
+width: 1600
+height: 900
+fps: 10
+jpg_compression_pct: 80
+interpolate: Null
+io_threads: 2
+calibration:
+  channel_order: "bgr"  # after flipping order in image loading
+  intrinsics:
+    fx: 800
+    fy: 800
+    u: 800
+    v: 450
+    g: 0
+  extrinsics:
+    dx: 0
+    dy: 0
+    dz: 0
+    qx: 0
+    qy: 0
+    qz: 0
+backend:
+  transport: "ipc"
+  host: "localhost"
+  port: 5550
+  bind: False
+verbose: True
+debug: False

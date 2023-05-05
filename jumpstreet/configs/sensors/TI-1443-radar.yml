@@ -3,10 +3,18 @@ type: "radar"
 sensor_class: "TiRadar"
 model: "TI-1443"
 refresh_rate: 50.0
-CLI_port: "/dev/ttyACM0"
-DATA_port: "/dev/ttyACM1"
+CLI_port: "/dev/ttyACM2"
+DATA_port: "/dev/ttyACM3"
 cfg_file: "1443config.cfg"
 io_threads: 1
+calibration:
+  extrinsics:
+    dx: 0
+    dy: 0
+    dz: 0
+    qx: 0
+    qy: 0
+    qz: 0
 backend:
   transport: "ipc"
   host: localhost

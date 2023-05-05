@@ -11,80 +11,6 @@ from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
-class LoadBalancingBroker(BaseClass):
-    """Load Balancing Broker
-
-    A load-balancing broker uses a router for both frontend and backend
-    """
-
-    NAME = "lb-broker"
-
-    def __init__(
-        self,
-        context,
-        FRONTEND=5550,
-        BACKEND=5551,
-        verbose=False,
-        debug=False,
-        identifier=0,
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(self.NAME, identifier, verbose=verbose, debug=debug)
-        self.frontend = init_some_end(
-            self, context, "frontend", zmq.ROUTER, "*", FRONTEND, BIND=True
-        )
-        self.backend = init_some_end(
-            self, context, "backend", zmq.ROUTER, "*", BACKEND, BIND=True
-        )
-        self.backend_ready = False
-        self.workers = []
-        self.print(f"initializing poller...", end="")
-        self.poller = zmq.Poller()
-        self.poller.register(self.backend, zmq.POLLIN)
-        self.poller.register(self.frontend, zmq.POLLIN)
-        print("done")
-
-    def poll(self):
-        sockets = dict(self.poller.poll(timeout=1))
-
-        # --- handle worker activity on the backend
-        if self.backend in sockets:
-            request = self.backend.recv_multipart()
-            worker, empty, client = request[:3]
-            self.workers.append(worker)
-            if self.workers and not self.backend_ready:
-                # Poll for clients now that a worker is available and backend was not ready
-                self.poller.register(self.frontend, zmq.POLLIN)
-                self.backend_ready = True
-            if client != b"READY" and len(request) > 3:
-                # If client reply, send rest back to frontend
-                empty, reply = request[3:]
-                self.frontend.send_multipart([client, b"", reply], copy=False)
-
-        # --- handle client requests on the frontend
-        if self.frontend in sockets:
-            # Get next client request, route to last-used worker
-            client, metadata, array = self.frontend.recv_array_envelope()
-            if metadata["msg"] == "READY":
-                # -- client discovery and acknowledgement
-                reply = b"OK"
-                self.frontend.send_multipart([client, b"", reply], copy=False)
-                # self.poller.unregister(self.frontend)
-            elif self.backend_ready and ("IMAGE" in metadata["msg"]):
-                # -- client requests
-                worker = self.workers.pop(0)
-                self.backend.send_array_envelope(
-                    worker, client, metadata["msg"], array, copy=False
-                )
-                if not self.workers:
-                    # Don't poll clients if no workers are available and set backend_ready flag to false
-                    self.poller.unregister(self.frontend)
-                    self.backend_ready = False
-            else:
-                raise NotImplemented(metadata["msg"])
-
-
 class LoadBalancingBrokerXSub(BaseClass):
     """Load Balancing Broker
 
@@ -113,6 +39,7 @@ class LoadBalancingBrokerXSub(BaseClass):
             frontend.host,
             frontend.port,
             BIND=frontend.bind,
+            HWM=frontend.highwatermark,
         )
         self.backend = init_some_end(
             self,
@@ -141,7 +68,7 @@ class LoadBalancingBrokerXSub(BaseClass):
         self.poller.register(self.backend, zmq.POLLIN)
         self.poller.register(self.frontend, zmq.POLLIN)
         self.poller.register(self.backend_xpub, zmq.POLLIN)
-        print("done")
+        self.print("done", end="\n")
 
     def poll(self):
         socks = dict(self.poller.poll(timeout=10))
@@ -159,44 +86,44 @@ class LoadBalancingBrokerXSub(BaseClass):
         # --- handle incoming data on the frontend
         if self.frontend in socks and socks[self.frontend] == zmq.POLLIN:
             msg, array = self.frontend.recv_array(copy=False)
+            if array is not None:
+                # --- handle different data types
+                pass_data = False
+                if "camera" in msg["identifier"]:
+                    data_type = "camera"
+                    pass_data = True
+                elif "radar" in msg["identifier"]:
+                    data_type = "radar"
+                    pass_data = True
 
-            # --- handle different data types
-            pass_data = False
-            if "camera" in msg["identifier"]:
-                data_type = "camera"
-                pass_data = True
-            elif "radar" in msg["identifier"]:
-                data_type = "radar"
-                pass_data = True
-
-            # -- pass on the data
-            if pass_data:
-                # -- primary worker
-                if self.debug:
-                    self.print(
-                        f"received {data_type} array of size {array.shape}", end="\n"
-                    )
-                if self.backend_ready[data_type]:
-                    worker = self.workers[data_type].pop(0)
-                    client = f"OK-{data_type}".encode()  # TODO: why is this needed???
-                    self.backend.send_array_envelope(
-                        worker, client, msg, array, copy=False
-                    )
-                else:
+                # -- pass on the data
+                if pass_data:
+                    # -- primary worker
                     if self.debug:
                         self.print(
-                            f"broker had {data_type} data to send but no worker ready",
-                            end="\n",
+                            f"received {data_type} array of size {array.shape}", end="\n"
                         )
+                    if self.backend_ready[data_type]:
+                        worker = self.workers[data_type].pop(0)
+                        client = f"OK-{data_type}".encode()  # TODO: why is this needed???
+                        self.backend.send_array_envelope(
+                            worker, client, msg, array, copy=False
+                        )
+                    else:
+                        if self.debug:
+                            self.print(
+                                f"broker had {data_type} data to send but no worker ready",
+                                end="\n",
+                            )
 
-                # -- secondary xpub (for display only)
-                if data_type == "camera":
-                    self.backend_xpub.send_array(array, msg=msg, copy=False)
+                    # -- secondary xpub (for display only)
+                    if data_type == "camera":
+                        self.backend_xpub.send_array(array, msg=msg, copy=False)
 
-            # -- check workers
-            for k in self.workers:
-                if not self.workers[k]:
-                    self.backend_ready[k] = False
+                # -- check workers
+                for k in self.workers:
+                    if not self.workers[k]:
+                        self.backend_ready[k] = False
 
         # --- handle subscription requests
         if self.backend_xpub in socks and socks[self.backend_xpub] == zmq.POLLIN:
@@ -215,7 +142,7 @@ class LoadBalancingBrokerXSub(BaseClass):
 
 def init_broker(broker):
     if broker.type.lower() == "lb":
-        return LoadBalancingBroker
+        raise NotImplementedError
     elif broker.type.lower() == "lb_with_xsub_extra_xpub":
         return LoadBalancingBrokerXSub
     else:

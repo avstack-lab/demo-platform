@@ -3,12 +3,16 @@ import time
 
 import cv2
 import numpy as np
-import PySpin
 from avapi import get_scene_manager
 from avstack.calibration import CameraCalibration
 from avstack.sensors import ImageData
 
 from .base import Sensor
+
+try:
+    import PySpin
+except ImportError:
+    print('Cannot import pyspin')
 
 
 STOP_KEY = "q"
@@ -181,7 +185,7 @@ class PySpinCamera(Camera):
             self.handle = cam_list.GetBySerial(self.config.serial)
             try:
                 self.handle.Init()
-                print(
+                self.print(
                     f"Successfully connected to {self.config.model} via serial number"
                 )
             except:
@@ -205,13 +209,12 @@ class PySpinCamera(Camera):
             #! Method should end here
             #### --------------------------------------------------------------
             self.handle.BeginAcquisition()
-            t0 = time.time()
             frame = -1
             while True:
                 ptr = self.handle.GetNextImage()
                 if ptr.IsIncomplete():
                     continue  # discard image
-                ts = round(time.time() - t0, 9)  # * 1e-9 # ms
+                ts = time.time()
                 frame += 1
 
                 # -- Version 1: successfully gets colored image as ndarray

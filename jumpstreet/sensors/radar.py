@@ -1,9 +1,10 @@
 import time
 
 import rad
-from avstack.geometry.transformations import matrix_cartesian_to_spherical
-
+import numpy as np
 from .base import Sensor
+from avstack.calibration import Calibration
+from avstack.geometry.transformations import matrix_cartesian_to_spherical
 
 
 class Radar(Sensor):
@@ -11,17 +12,32 @@ class Radar(Sensor):
 
     def initialize(self):
         self.radar = rad.Radar(
-            config_file_name=self.configuration["config_file_name"],
+            config_file_name=self.config.cfg_file,
             translate_from_JSON=False,
             enable_serial=True,
-            CLI_port=self.configuration["CLI_port"],
-            Data_port=self.configuration["Data_port"],
+            CLI_port=self.config.CLI_port,
+            Data_port=self.config.DATA_port,
             enable_plotting=False,
             jupyter=False,
             data_file=None,
-            refresh_rate=self.configuration["refresh_rate"],
+            refresh_rate=self.config.refresh_rate,
             verbose=False,
         )
+    
+    def _send_radar_data(self, razelrrt, ts, frame):
+        # -- send across comms channel
+        msg = {
+            "timestamp": ts,
+            "frame": frame,
+            "identifier": self.identifier,
+            "extrinsics": self.calibration.format_as_string(),
+        }
+        self.backend.send_array(razelrrt, msg, False)
+        if self.debug:
+            self.print(
+                f"sending data, frame: {msg['frame']:4d}, timestamp: {msg['timestamp']:.4f}",
+                end="\n",
+                )
 
 
 class TiRadar(Radar):
@@ -31,6 +47,7 @@ class TiRadar(Radar):
         backend,
         config,
         identifier,
+        min_range=1.0,
         verbose=False,
         debug=False,
         *args,
@@ -46,10 +63,11 @@ class TiRadar(Radar):
         )
         self.radar = None
         self.frame = 0
+        self.min_range = min_range
+        self.calibration = Calibration(self.extrinsics)
 
     def start_capture(self):
         self.radar.start()
-        t0 = time.time()
         while True:
             try:
                 # -- read from serial port
@@ -57,26 +75,14 @@ class TiRadar(Radar):
                 xyzrrt = self.radar.read_serial()
                 if xyzrrt is None:
                     continue
-                razelrrt = xyzrrt.copy()
-                razelrrt[:, :3] = matrix_cartesian_to_spherical(xyzrrt[:, :3])
-
-                # -- send across comms channel
-                timestamp = round(time.time() - t0, 9)
-                msg = {
-                    "timestamp": timestamp,
-                    "frame": self.frame,
-                    "identifier": self.identifier,
-                    "extrinsics": [0, 0, 0, 0, 0],
-                }
-                self.backend.send_array(razelrrt, msg, False)
-                if self.debug:
-                    self.print(
-                        f"sending data, frame: {msg['frame']:4d}, timestamp: {msg['timestamp']:.4f}",
-                        end="\n",
-                    )
+                razelrrt = matrix_cartesian_to_spherical(np.array([xyzrrt[:,1], -xyzrrt[:,0], xyzrrt[:,2], xyzrrt[:,3]]).T)
+                razelrrt = razelrrt[razelrrt[:,0] > self.min_range, :]
+                timestamp = time.time()
+                self._send_radar_data(razelrrt, timestamp, self.frame)
                 self.frame += 1
+                self.time_monitor.trigger()
             except KeyboardInterrupt:
                 self.radar.streamer.stop_serial_stream()
                 if self.verbose or self.debug:
-                    print("Radar.stream_serial: stopping serial stream")
+                    self.print("Radar.stream_serial: stopping serial stream")
                 break

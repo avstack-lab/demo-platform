@@ -13,13 +13,15 @@ backend:
 
 workers:
   image:
-    n_workers: 2
-    model: fasterrcnn
-    dataset: coco-person
-    threshold: 0.5
-  radar:
     n_workers: 0
+    detector: Null
     model: Null
+    dataset: Null
+    threshold: Null
+  radar:
+    n_workers: 1
+    detector: Null
+    model: passthrough
     dataset: Null
     threshold: Null
 

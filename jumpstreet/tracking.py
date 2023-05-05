@@ -6,7 +6,7 @@ import logging
 import zmq
 from avstack.datastructs import DelayManagedDataBuffer
 from avstack.modules.perception.detections import get_data_container_from_line
-from avstack.modules.tracking import tracker2d
+from avstack.modules.tracking import tracker2d, tracker3d
 from avstack.modules.tracking.tracks import format_data_container_as_string
 
 from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
@@ -17,6 +17,8 @@ def init_tracking_model(model):
         tracker = tracker2d.SortTracker2D()
     elif model == "passthrough":
         tracker = tracker2d.PassthroughTracker2D()
+    elif model == "BasicRazTracker":
+        tracker = tracker3d.BasicRazTracker()
     else:
         raise NotImplementedError(model)
     return tracker
@@ -79,7 +81,6 @@ class ObjectTracker(BaseClass):
             # -- get data from frontend
             key, data = self.frontend.recv_multipart()
             detections = get_data_container_from_line(data.decode())
-
             # -- put detections on the buffer
             self.detection_buffer.push(detections)
 
@@ -95,12 +96,20 @@ class ObjectTracker(BaseClass):
                         f"Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}",
                         end="\n",
                     )
-                tracks = self.model(
-                    detections,
-                    t=detections.timestamp,
-                    frame=detections.frame,
-                    identifier="tracker-0",
-                )
+                try:
+                    tracks = self.model(
+                        detections_2d=detections,
+                        t=detections.timestamp,
+                        frame=detections.frame,
+                        identifier="tracker-0",
+                    )
+                except TypeError:
+                    tracks = self.model(
+                        detections_nd=detections,
+                        t=detections.timestamp,
+                        frame=detections.frame,
+                        identifier="tracker-0",
+                    )
                 if self.debug:
                     self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
                 tracks = format_data_container_as_string(tracks).encode()

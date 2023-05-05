@@ -9,14 +9,14 @@ from time import sleep
 import cv2
 import numpy as np
 import zmq
-from avstack.calibration import CameraCalibration, read_calibration_from_line
-from avstack.geometry import NominalOriginStandard
+from avstack.calibration import read_calibration_from_line
 from avstack.modules.perception.detections import (
     format_data_container_as_string,
-    get_data_container_from_line,
 )
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 from avstack.sensors import ImageData
+from avstack.modules.perception.detections import RazDetection
+from avstack.datastructs import DataContainer
 
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
@@ -29,6 +29,7 @@ class ObjectDetector(BaseClass):
         frontend,
         backend,
         identifier,
+        detector,
         dataset,
         model,
         threshold,
@@ -63,12 +64,12 @@ class ObjectDetector(BaseClass):
             backend.port,
             BIND=backend.bind,
         )
-        self.set_model(dataset, model, threshold)
+        self.set_model(detector, dataset, model, threshold)
         if self.verbose:
             self.print("initialized perception model!", end="\n")
 
         # -- ready to go (need this!)
-        self.frontend.send(b"READY-camera")
+        self.frontend.send(f"READY-{self.WORKER}".encode())
         if self.verbose:
             self.print(f"ready to start", end="\n")
 
@@ -81,9 +82,14 @@ class ObjectDetector(BaseClass):
         address, metadata, array = self.frontend.recv_array_multipart(copy=True)
 
         # -- decompress data (NZ)
-        decoded_frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
-        array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
-        metadata["shape"] = array.shape
+        if "camera" in metadata["msg"]["identifier"]:
+            decoded_frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
+            array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
+            metadata["shape"] = array.shape
+        elif "radar" in metadata["msg"]["identifier"]:
+            pass
+        else:
+            raise NotImplementedError(metadata["identifier"])
 
         # -- process data
         detections = self.detect(metadata, array)
@@ -95,7 +101,7 @@ class ObjectDetector(BaseClass):
         # -- send data at backend
         self.backend.send_multipart([b"detections", detections])
         # -- say we're ready for more
-        self.frontend.send_multipart([address, b"", b"OK-camera"])
+        self.frontend.send_multipart([address, b"", f"OK-{self.WORKER}".encode()])
 
     def set_model(self):
         raise NotImplementedError
@@ -106,6 +112,7 @@ class ObjectDetector(BaseClass):
 
 class ImageObjectDetector(ObjectDetector):
     NAME = "image-detector"
+    WORKER = "camera"
 
     def __init__(
         self,
@@ -113,6 +120,7 @@ class ImageObjectDetector(ObjectDetector):
         frontend,
         backend,
         identifier,
+        detector="mmdetection",
         dataset="coco-person",
         model="fasterrcnn",
         threshold=0.5,
@@ -124,6 +132,7 @@ class ImageObjectDetector(ObjectDetector):
             frontend,
             backend,
             identifier,
+            detector,
             dataset,
             model,
             threshold,
@@ -131,9 +140,9 @@ class ImageObjectDetector(ObjectDetector):
             debug,
         )
 
-    def set_model(self, dataset, model, threshold):
+    def set_model(self, detector, dataset, model, threshold):
         # -- set up perception model
-        if model == "fasterrcnn":
+        if detector == "mmdetection":
             try:
                 self.model = MMDetObjectDetector2D(
                     dataset=dataset, model=model, threshold=threshold, gpu=0
@@ -161,10 +170,6 @@ class ImageObjectDetector(ObjectDetector):
                 raise NotImplementedError(metadata["msg"]["channel_order"])
             timestamp = metadata["msg"]["timestamp"]
             frame = metadata["msg"]["frame"]
-            if self.debug:
-                self.print(
-                    f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}", end="\n"
-                )
             identifier = metadata["msg"]["identifier"]
             calib = read_calibration_from_line(metadata["msg"]["calibration"])
             image = ImageData(
@@ -180,6 +185,10 @@ class ImageObjectDetector(ObjectDetector):
             detections = self.model(
                 image, identifier=metadata["msg"]["identifier"], is_rgb=is_rgb
             )
+            if self.debug:
+                self.print(
+                    f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}, {len(detections)} detections", end="\n"
+                )
         else:
             detections = None
         return detections
@@ -187,6 +196,7 @@ class ImageObjectDetector(ObjectDetector):
 
 class RadarObjectDetector(ObjectDetector):
     NAME = "radar-detector"
+    WORKER = "radar"
 
     def __init__(
         self,
@@ -194,34 +204,41 @@ class RadarObjectDetector(ObjectDetector):
         frontend,
         backend,
         identifier,
-        dataset="none",
+        detector=None,
+        dataset=None,
         model="passthrough",
         threshold=0.5,
-        verbose=False,
+        verbose=True,
+        debug=False,
     ) -> None:
         super().__init__(
             context,
             frontend,
             backend,
             identifier,
+            detector,
             dataset,
             model,
             threshold,
             verbose,
+            debug,
         )
         self.passthrough = model == "passthrough"
 
-    def set_model(self, dataset, model, threshold):
+    def set_model(self, detector, dataset, model, threshold):
         if model == "passthrough":
-            self.model = lambda x: x  # just a passthrough function
+            def msmts_to_dc(metadata, array):
+                dets = []
+                for i in range(array.shape[0]):
+                    dets.append(RazDetection(source_identifier=metadata["msg"]["identifier"], raz=array[i,:2]))
+                return DataContainer(frame=metadata["msg"]["frame"], timestamp=metadata["msg"]["timestamp"], data=dets, source_identifier=metadata["msg"]["identifier"])
+            self.model = msmts_to_dc
         else:
             raise NotImplementedError(model)
 
     def detect(self, metadata, array):
-        if self.passthrough:
-            detections = get_data_container_from_line(array)
-        else:
-            raise NotImplementedError
+        array = np.reshape(array, metadata["shape"])
+        detections = self.model(metadata, array)
         return detections
 
 
@@ -238,6 +255,7 @@ def main_single(
     backend,
     worker_type,
     identifier,
+    detector,
     dataset,
     model,
     threshold,
@@ -257,6 +275,7 @@ def main_single(
         frontend,
         backend,
         identifier=identifier,
+        detector=detector,
         dataset=dataset,
         model=model,
         threshold=threshold,
@@ -287,6 +306,7 @@ def main(config):
             main_partial,
             worker_type="image",
             identifier=i,
+            detector=config.workers.image.detector,
             dataset=config.workers.image.dataset,
             model=config.workers.image.model,
             threshold=config.workers.image.threshold,
@@ -301,9 +321,10 @@ def main(config):
             main_partial,
             worker_type="radar",
             identifier=i,
-            dataset=config.workers.radar_dataset,
-            model=config.workers.radar_model,
-            threshold=config.workers.radar_threshold,
+            detector=config.workers.radar.detector,
+            dataset=config.workers.radar.dataset,
+            model=config.workers.radar.model,
+            threshold=config.workers.radar.threshold,
             verbose=config.verbose,
             debug=config.debug,
         )

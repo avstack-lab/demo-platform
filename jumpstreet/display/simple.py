@@ -12,16 +12,17 @@ import os
 
 import numpy as np
 import zmq
-from avstack.calibration import read_calibration_from_line
-from avstack.datastructs import BasicDataBuffer, DataContainer
-from avstack.modules.tracking.tracks import get_data_container_from_line
-from avstack.sensors import ImageData
 from cv2 import IMREAD_COLOR, imdecode
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 
 import jumpstreet
 from jumpstreet.utils import config_as_namespace
+
+from avstack.sensors import ImageData
+from avstack.calibration import read_calibration_from_line
+from avstack.datastructs import BasicDataBuffer, DataContainer, DelayManagedDataBuffer
+from avstack.modules.tracking.tracks import get_data_container_from_line
 
 
 class MainLoop(QObject):
@@ -30,16 +31,17 @@ class MainLoop(QObject):
 
     def __init__(
         self,
+        config,
         display_cam_id,
         context,
         frontend_images,
         frontend_tracks,
-        dt_delay=0.1,
         verbose=False,
         debug=False,
     ):
         super().__init__()
         self.quit_flag = False
+        self.config = config
         self.display_cam_id = display_cam_id
         self.verbose = verbose
         self.debug = debug
@@ -68,7 +70,6 @@ class MainLoop(QObject):
             BIND=frontend_images.bind,
             subopts=b"",
         )
-        self.dt_delay = dt_delay
 
         # -- set up polling
         self.poller = zmq.Poller()
@@ -77,13 +78,14 @@ class MainLoop(QObject):
 
         # -- set up processes
         self.trigger = jumpstreet.trigger.AlwaysTrigger(identifier=0)
-        self.video_buffer = BasicDataBuffer(max_size=30)
+        self.video_buffer = DelayManagedDataBuffer(
+            dt_delay=self.config.display.dt_delay, max_size=100, method="real-time"
+        )
         self.track_buffer = BasicDataBuffer(max_size=30)
         self.muxer = jumpstreet.muxer.VideoTrackMuxer(
             self.video_buffer,
             self.track_buffer,
             identifier=0,
-            dt_delay=self.dt_delay,
             verbose=self.verbose,
             debug=self.debug,
         )
@@ -121,15 +123,11 @@ class MainLoop(QObject):
                         data=array,
                         calibration=calib,
                     )
+                    image.source_identifier = self.display_cam_id  # HACK
                     if self.debug:
                         self.print(f"received frame at time: {timestamp}", end="\n")
-                    image_data_container = DataContainer(
-                        frame=frame,
-                        timestamp=timestamp,
-                        data=image,
-                        source_identifier=identifier,
-                    )
-                    self.video_buffer.push(image_data_container)
+                    self.video_buffer.push(image)
+                    
 
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
@@ -147,12 +145,13 @@ class MainLoop(QObject):
 
                 # -- emit an image, subject to a delay factor
                 image_out = self.muxer.emit_one()
-                if (self.display_cam_id in image_out) and len(
-                    image_out[self.display_cam_id]
-                ) > 0:
+                if (self.display_cam_id in image_out):
                     if self.debug:
                         self.print(f"emitting image to display", end="\n")
-                    self.update.emit([image_out[self.display_cam_id].data])
+                    try:
+                        self.update.emit([image_out[self.display_cam_id].data])
+                    except KeyboardInterrupt:
+                        pass  # weirdness...
 
         except Exception as e:
             logging.warning(e, exc_info=True)
@@ -165,6 +164,7 @@ class MainLoop(QObject):
 def main(config):
     context = jumpstreet.context.SerializingContext(config.display.io_threads)
     main_loop = MainLoop(
+        config=config,
         display_cam_id=config.display.camera_id,
         context=context,
         frontend_images=config.frontend_images,
