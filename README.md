@@ -11,7 +11,7 @@ To test networking without real sensors, you can download image data to playback
 ```
 ./download_tracking.sh
 ```
-from inside the `data` folder. **NOTE:** if you system does not allow you to make a folder at /data/tracking, then pass an argument to the call above with your custom download folder, e.g., `./download_tracking.sh ./data/tracking` aka locally.
+from inside the `data` folder. **NOTE:** if you system does not allow you to make a folder at /data/tracking, then pass an argument to the call above with your custom download folder, e.g., `./download_tracking.sh ./data/tracking` aka locally. You can use local downloads of any `AVstack`-compatible dataset such as KITTI or nuScenes.
 
 Ensure the symbolic links attached appropriately to the location that the data was downloaded.
 
@@ -20,6 +20,8 @@ Ensure the symbolic links attached appropriately to the location that the data w
 #### Third-Party
 
 First, ensure that the submodules (in the folder `third_party`) are initialized. You can do this with `git submodule update --recursive`. If doing this for the first time, add an `--init` flag as well.
+
+The only configuration of third party libraries you'll need is to download perception models. You will need to do this in the `third_party/lib-avstack-core/models` folder. Follow the installation instructions for `AVstack` for more clarity.
 
 #### Environment With Poetry
 
@@ -33,44 +35,22 @@ If all goes well, you will have a working python environment!
 
 ### Running Scripts
 
-You will need some number of terminal windows, terminal tabs, or terminal subwindows (recommended, using [tmux][tmux])
+#### Replaying Sensor Data
 
-In terminal 1, to start the data broker, run:
+You will just need two terminal windows to run a replay system. The first will run our controller, the second will replay the data. Specifically, run:
+
 ```
-make data_broker
+make controller CCONF=camera
 ```
-
-In terminal 2, to run the image-based detection, run:
+in the first window (waiting for the perception models to say they are initialized) and
 ```
-make detection_workers
+make mot15_replay  # or make kitti_replay, e.g.
 ```
+in the second window. If all goes well, you will see the sensor data replayed on the Qt window with tracks and labels.
 
-In terminal 3, to start the display process, run:
-```
-make frontend
-```
+#### Physical Sensors
 
-In terminal 4, to start replaying sensor data, run:
-```
-make replay
-```
-
-You should see at the least image data being played back over the front-end display. Detection may not be set up yet to actually produce anything meaningful.
-
-#### Bugs 
-
-##### Display Must Be Running
-
-Currently, there is a bug where the data broker will not pass on data to the detection workers if the frontend display is not running. I think this is because the XSUB in the data broker is connected to an XPUB in the data broker which is connected to a SUB in the display process. If there is no display process, then XPUB will not need to send anything meaning XSUB *thinks* it does not need to receive anything when in reality it still needs to receive something to send to the ROUTER. It's possible that changing the XSUB to a regular SUB and changing the XPUB to a regular PUB is the better solution. This needs to be fixed so the detection can work even if display is not working.
-
-##### Always-copy
-
-When data is passed over a socket, it currently must be copied in order to retain the byte-stream structure. Ideally, we would NOT copy the data if we didn't have to, however, this would return a ZMQ.Frame object which is not currently handled in the code. This is a low-priority issue.
-
-
-### Display (TODO)
-
-TBD...maybe use [Grafana][grafana]?
+This demo platform can also be run with physical sensors over an ethernet or serial connection. We demonstated this capability at ICCPS 2023. We plan to provide more details on how to accomplish this in the future. If particularly interested, please reach out to us, and we can schedule a consultation.
 
 
 [makefile]: https://github.com/percep-tech/jumpstreet/blob/main/Makefile
