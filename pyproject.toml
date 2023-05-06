@@ -23,7 +23,9 @@ lib-avstack-api = {path="third_party/lib-avstack-api", develop=true}
 lib-rad = {path="third_party/lib-rad", develop=true}
 PyQt5 = "^5.15.2"
 websocket-client = "^1.5.1"
-spinnaker_python =  { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl" }
+
+# spinnaker_python =  { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl" }
+# spinnaker_python =  { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl" }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7"
