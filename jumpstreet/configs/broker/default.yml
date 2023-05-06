@@ -1,7 +1,7 @@
 ---
 frontend:
-  transport: "tcp"
-  host: "0.0.0.0"
+  transport: "ipc"
+  host: "localhost"
   port: 5550
   bind: True
   highwatermark: 5
