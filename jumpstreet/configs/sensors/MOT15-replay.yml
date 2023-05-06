@@ -28,8 +28,8 @@ calibration:
     qy: 0
     qz: 0
 backend:
-  transport: "ipc"
-  host: "localhost"
+  transport: "tcp"
+  host: "0.0.0.0"
   port: 5550
   bind: False
 verbose: True

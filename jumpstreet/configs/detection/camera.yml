@@ -16,7 +16,7 @@ workers:
     n_workers: 2
     detector: mmdetection
     model: fasterrcnn
-    dataset: carla
+    dataset: coco-person
     threshold: 0.50
   radar:
     n_workers: 0
