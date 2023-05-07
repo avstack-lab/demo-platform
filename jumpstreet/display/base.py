@@ -7,7 +7,7 @@ import os
 # NOTE: These two lines are VERY IMPORTANT -- they ensure qt
 # uses its own path to the graphics plugins and not the cv2 path
 import cv2
-
+import numpy as np
 
 os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 #################################################################
@@ -136,7 +136,12 @@ class QImageViewer(QMainWindow):
         """Input is a numpy array"""
         h, w, _ = image.shape
         if channel_order == 'bgr':
-            img_form = QImage.Format_BGR888
+            try:
+                img_form = QImage.Format_BGR888
+            except AttributeError:
+                img_form = QImage.Format_RGB888
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                channel_order = 'rgb'
         else:
             raise NotImplementedError
         qimage = QImage(image.data, w, h, 3 * w, img_form)

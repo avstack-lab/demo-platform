@@ -17,6 +17,7 @@ Ensure the symbolic links attached appropriately to the location that the data w
 
 ### Installing Dependencies
 
+
 #### Third-Party
 
 First, ensure that the submodules (in the folder `third_party`) are initialized. You can do this with `git submodule update --recursive`. If doing this for the first time, add an `--init` flag as well.
@@ -26,6 +27,12 @@ The only configuration of third party libraries you'll need is to download perce
 #### Environment With Poetry
 
 After the third party liaries are initialized, we'll use [`poetry`][poetry] to manage a python environment. To get started, ensure `poetry` is installed on your machine by following the installation instructions [here][poetry-docs].
+
+NOTE: if the installation is giving you troubles (e.g., in my experience, with `pycocotools` in `aarch64`-based chips), try the following:
+```
+poetry config experimental.new-installer false
+```
+to get through the problem packages, then reactivation with `true`.
 
 Once poetry is installed, you can set up the poetry environment with assistance from the [Makefile][makefile]. Specifically, try running:
 ```

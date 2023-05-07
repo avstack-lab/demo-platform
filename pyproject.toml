@@ -21,11 +21,13 @@ jsonpickle = "^3.0"
 lib-avstack-core = {path="third_party/lib-avstack-core", develop=true}
 lib-avstack-api = {path="third_party/lib-avstack-api", develop=true}
 lib-rad = {path="third_party/lib-rad", develop=true}
-PyQt5 = "^5.15.2"
+# PyQt5 = "^5.15.9"
+vext-pyqt5 = "^0.7.4"
 websocket-client = "^1.5.1"
-
-# spinnaker_python =  { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl" }
-# spinnaker_python =  { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl" }
+spinnaker_python = [
+    { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.0.0.118-cp38-cp38-linux_x86_64.whl", markers = "platform_machine == 'x86_64'" },
+    { url = "https://g-b0ef78.1d0d8d.03c0.data.globus.org/packages/pyspin/spinnaker_python-3.1.0.79-cp38-cp38-linux_aarch64.whl", markers = "platform_machine == 'aarch64'" }
+]
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7"

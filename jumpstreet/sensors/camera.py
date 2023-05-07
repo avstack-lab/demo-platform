@@ -26,9 +26,15 @@ class NearRealTimeImageLoader:
     process to enable near-correct-time sending
     """
 
-    def __init__(self, dataset) -> None:
+    def __init__(self, dataset, framerate=None) -> None:
         self.dataset = dataset
-        self.interval = 1.0 / dataset.framerate
+        self.ds_interval = 1.0 / dataset.framerate
+        if framerate is None:
+            self.interval = self.ds_interval
+        else:
+            self.interval = 1.0 / framerate
+        self.increment = self.interval / self.ds_interval
+        print(f'Loading images at {1.0/self.interval:.2f} FPS, img increment is {self.increment:.2f}')
         self.i_next_img = 0
         self.counter = 0
         self.last_load_time = 0
@@ -47,7 +53,7 @@ class NearRealTimeImageLoader:
             self.dataset.frames[self.i_next_img], "main_camera"
         )
         self.counter += 1
-        self.i_next_img = (self.i_next_img + 1) % len(self.dataset)
+        self.i_next_img = int( (self.i_next_img + self.increment) % len(self.dataset) )
         t_post = time.time()
         if self.t0 is None:
             self.t0 = t_post
@@ -126,7 +132,7 @@ class ReplayCamera(Camera):
         SM = get_scene_manager(config.dataset, config.data_dir, config.split)
         SD = SM.get_scene_dataset_by_name(config.scene)
         self.dataset = SD
-        self.image_loader = NearRealTimeImageLoader(dataset=SD)
+        self.image_loader = NearRealTimeImageLoader(dataset=SD, framerate=config.fps)
 
     def send(self):
         img = self.image_loader.load_next()
