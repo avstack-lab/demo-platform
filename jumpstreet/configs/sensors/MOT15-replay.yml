@@ -5,11 +5,12 @@ dataset: "MOT15"
 data_dir: "./data/MOT15/"
 split: "train"
 scene: "ADL-Rundle-6"
+preload: false
 serial: Null
 width: 1920
 height: 1080
-fps: 5
-jpg_compression_pct: 80
+fps: 30
+jpg_compression_pct: 0
 interpolate: Null
 io_threads: 2
 calibration:

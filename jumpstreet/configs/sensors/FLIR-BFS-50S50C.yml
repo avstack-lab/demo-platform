@@ -6,11 +6,11 @@ serial: "22395929"
 width: 2448
 height: 2048
 fps: 20
-jpg_compression_pct: 80
+jpg_compression_pct: 0
 interpolate: 2
 io_threads: 2
 calibration:
-  channel_order: "rgb"
+  channel_order: "bgr"
   intrinsics:
     fx: 1448
     fy: 1448

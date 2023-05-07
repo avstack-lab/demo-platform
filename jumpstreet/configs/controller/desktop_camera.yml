@@ -1,0 +1,10 @@
+---
+modules:
+  broker:
+    config: "broker/default.yml"
+  detection:
+    config: "detection/desktop_camera.yml"
+  tracking:
+    config: "tracking/camera.yml"
+  display:
+    config: "display/default.yml"

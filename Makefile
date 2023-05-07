@@ -1,6 +1,7 @@
 NAME := jumpstreet
 INSTALL_STAMP := .install.stamp
 POETRY := $(shell command -v poetry 2> /dev/null)
+PLATFORM?=desktop
 CCONF?=camera
 .DEFAULT_GOAL := help
 
@@ -47,7 +48,7 @@ test: $(INSTALL_STAMP)
 .PHONY: controller
 controller: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/controller.py \
-			--config controller/$(CCONF).yml
+			--config controller/$(PLATFORM)_$(CCONF).yml
 
 .PHONY: mot15_replay
 mot15_replay: $(INSTALL_STAMP)

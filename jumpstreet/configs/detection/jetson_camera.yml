@@ -1,0 +1,29 @@
+---
+frontend:
+  transport: "ipc"
+  host: localhost
+  port: 5551
+  bind: False
+
+backend:
+  transport: "ipc"
+  host: localhost
+  port: 5553
+  bind: False
+
+workers:
+  image:
+    n_workers: 2
+    detector: jetson
+    model: dashcamnet
+    dataset: dashcamnet
+    threshold: 0.25
+  radar:
+    n_workers: 0
+    detector: Null
+    model: Null
+    dataset: Null
+    threshold: Null
+
+verbose: True
+debug: True

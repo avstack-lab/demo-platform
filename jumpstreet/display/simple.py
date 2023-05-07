@@ -106,11 +106,12 @@ class MainLoop(QObject):
 
                 # -- add video data to buffer
                 if self.frontend_images in socks:
-                    msg, image = self.frontend_images.recv_array(copy=False)
+                    msg, array = self.frontend_images.recv_array(copy=False)
 
                     # -- decompress data
-                    decoded_frame = imdecode(image, IMREAD_COLOR)
-                    array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
+                    if msg["encoded"]:
+                        decoded_frame = imdecode(array, IMREAD_COLOR)
+                        array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
                     timestamp = msg["timestamp"]
                     frame = msg["frame"]
                     identifier = msg["identifier"]

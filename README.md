@@ -40,6 +40,13 @@ make install
 ```
 If all goes well, you will have a working python environment!
 
+#### Installing on NVIDIA Jetson
+
+After we build the `jetson-inference` library, we need to link the site packages by running:
+```
+./link_site_packages.sh
+```
+
 ### Running Scripts
 
 #### Replaying Sensor Data
@@ -60,9 +67,14 @@ in the second window. If all goes well, you will see the sensor data replayed on
 This demo platform can also be run with physical sensors over an ethernet or serial connection. We demonstated this capability at ICCPS 2023. We plan to provide more details on how to accomplish this in the future. If particularly interested, please reach out to us, and we can schedule a consultation.
 
 
+## Other Things
+
+[Creating virtual network interfaces][virtual-network], run `sudo ip addr add 192.168.1.11/24 dev eth0`
+
 [makefile]: https://github.com/percep-tech/jumpstreet/blob/main/Makefile
 [poetry]: https://github.com/python-poetry/poetry
 [poetry-docs]: https://python-poetry.org/docs/
 [grafana]: https://grafana.com/
 [mot15]: https://motchallenge.net/data/MOT15.zip
 [tmux]: https://github.com/tmux/tmux/wiki
+[virutal-network]: https://ostechnix.com/how-to-assign-multiple-ip-addresses-to-single-network-card-in-linux/

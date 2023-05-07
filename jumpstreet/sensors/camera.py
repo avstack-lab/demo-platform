@@ -3,9 +3,11 @@ import time
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 from avapi import get_scene_manager
 from avstack.calibration import CameraCalibration
 from avstack.sensors import ImageData
+from jumpstreet.utils import BaseClass
 
 from .base import Sensor
 
@@ -19,14 +21,17 @@ STOP_KEY = "q"
 img_exts = [".jpg", ".jpeg", ".png", ".tiff"]
 
 
-class NearRealTimeImageLoader:
+class NearRealTimeImageLoader(BaseClass):
     """Loads images at nearly the correct rate
 
     It is expected that this will perform the necessary sleep
     process to enable near-correct-time sending
     """
-
-    def __init__(self, dataset, framerate=None) -> None:
+    NAME = "image-loader"
+    def __init__(self, dataset, framerate=None, preload=False, verbose=True, debug=False) -> None:
+        super().__init__(
+            name=self.NAME, identifier=0, verbose=verbose, debug=debug
+        )
         self.dataset = dataset
         self.ds_interval = 1.0 / dataset.framerate
         if framerate is None:
@@ -34,13 +39,23 @@ class NearRealTimeImageLoader:
         else:
             self.interval = 1.0 / framerate
         self.increment = self.interval / self.ds_interval
-        print(f'Loading images at {1.0/self.interval:.2f} FPS, img increment is {self.increment:.2f}')
+        if self.verbose:
+            self.print(f'Loading images at {1.0/self.interval:.2f} FPS, img increment is {self.increment:.2f}', end='\n')
         self.i_next_img = 0
         self.counter = 0
         self.last_load_time = 0
         self.t0 = None
         self.dt_last_load = 0
         self.next_target_send = None
+
+        # load images into memory for faster access
+        self.preload = preload
+        if self.preload:
+            self.images = []
+            if self.verbose:
+                self.print(f'Loading {len(self.dataset)} images into memory...', end='\n')
+            for frame in tqdm(self.dataset.frames):
+                self.images.append(self.dataset.get_image(frame, "main_camera"))
 
     def load_next(self):
         t_pre_1 = time.time()
@@ -49,9 +64,13 @@ class NearRealTimeImageLoader:
             if dt_wait > 0:
                 time.sleep(dt_wait)
         t_pre_2 = time.time()
-        img = self.dataset.get_image(
-            self.dataset.frames[self.i_next_img], "main_camera"
-        )
+        if self.preload:
+            img = self.images[self.i_next_img]
+        else:
+            img = self.dataset.get_image(
+                self.dataset.frames[self.i_next_img], "main_camera"
+            )
+        ts = self.counter * self.interval
         self.counter += 1
         self.i_next_img = int( (self.i_next_img + self.increment) % len(self.dataset) )
         t_post = time.time()
@@ -59,7 +78,7 @@ class NearRealTimeImageLoader:
             self.t0 = t_post
         self.dt_last_load = t_post - t_pre_2
         self.next_target_send = self.t0 + self.counter * self.interval
-        return img
+        return img, ts
 
 
 class Camera(Sensor):
@@ -98,27 +117,41 @@ class Camera(Sensor):
     def _send_image_data(self, img, ts, frame):
         array = img.data
         channel_order = img.calibration.channel_order
+
+        # -- image interpolation
+        if (self.config.interpolate is not None) and (self.config.interpolate > 1):
+            new_h = int(array.shape[0] // self.config.interpolate)
+            new_w = int(array.shape[1] // self.config.interpolate)
+            array = cv2.resize(array, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        else:
+            new_h = array.shape[0]
+            new_w = array.shape[1]
+
+        # -- image compression
+        if self.jpg_compression_pct > 0:
+            success, result = cv2.imencode(
+                ".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, self.jpg_compression_pct]
+            )
+            if not success:
+                raise RuntimeError("Error compressing image")
+            compressed_frame = np.array(result)
+            array = np.ascontiguousarray(compressed_frame)
+            jpg_encoded = True
+        else:
+            array = np.ascontiguousarray(array)
+            jpg_encoded = False
+
+        # -- message
         msg = {
             "timestamp": ts,
             "frame": frame,
             "channel_order": channel_order,
             "identifier": self.identifier,
             "calibration": self.calibration.format_as_string(),
+            "encoded": jpg_encoded,
+            "height": new_h,
+            "width": new_w,
         }
-        # -- image interpolation
-        if (self.config.interpolate is not None) and (self.config.interpolate > 1):
-            new_h = int(array.shape[0] // self.config.interpolate)
-            new_w = int(array.shape[1] // self.config.interpolate)
-            array = cv2.resize(array, (new_w, new_h), interpolation=cv2.INTER_AREA)
-
-        # -- image compression
-        success, result = cv2.imencode(
-            ".jpg", array, [cv2.IMWRITE_JPEG_QUALITY, self.jpg_compression_pct]
-        )
-        if not success:
-            raise RuntimeError("Error compressing image")
-        compressed_frame = np.array(result)
-        array = np.ascontiguousarray(compressed_frame)
         self.backend.send_array(array, msg, copy=False)
 
 
@@ -132,11 +165,10 @@ class ReplayCamera(Camera):
         SM = get_scene_manager(config.dataset, config.data_dir, config.split)
         SD = SM.get_scene_dataset_by_name(config.scene)
         self.dataset = SD
-        self.image_loader = NearRealTimeImageLoader(dataset=SD, framerate=config.fps)
+        self.image_loader = NearRealTimeImageLoader(dataset=SD, framerate=config.fps, preload=config.preload)
 
     def send(self):
-        img = self.image_loader.load_next()
-        ts = self.image_loader.counter / self.dataset.framerate
+        img, ts = self.image_loader.load_next()
         frame = self.image_loader.counter
         if self.debug:
             self.print(
@@ -188,16 +220,22 @@ class PySpinCamera(Camera):
         if "flir" in self.config.model.lower():
             system = PySpin.System.GetInstance()
             cam_list = system.GetCameras()
-            self.handle = cam_list.GetBySerial(self.config.serial)
-            try:
-                self.handle.Init()
-                self.print(
-                    f"Successfully connected to {self.config.model} via serial number"
-                )
-            except:
-                raise RuntimeError(
-                    f"Unable to connect to {self.config.model} via serial number"
-                )
+            i_att = 0
+            while len(cam_list) > 0:
+                self.handle = cam_list.GetBySerial(self.config.serial)
+                try:
+                    self.handle.Init()
+                    self.print(
+                        f"Successfully connected to {self.config.model} via serial number", end='\n'
+                    )
+                    break
+                except PySpin.SpinnakerException:
+                    cam_list.RemoveBySerial(self.config.serial)
+                    i_att += 1
+                    if i_att > 10:
+                        raise RuntimeError(
+                            f"Unable to connect to {self.config.model} via serial number"
+                        )
 
             ## Set the camera properties here
             self.handle.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
@@ -217,16 +255,23 @@ class PySpinCamera(Camera):
             self.handle.BeginAcquisition()
             frame = -1
             while True:
-                ptr = self.handle.GetNextImage()
+                try:
+                    ptr = self.handle.GetNextImage()
+                except PySpin.SpinnakerException:
+                    continue
+
                 if ptr.IsIncomplete():
                     continue  # discard image
                 ts = time.time()
                 frame += 1
 
                 # -- Version 1: successfully gets colored image as ndarray
-                arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
-                    self.image_dimensions
-                )
+                try:
+                    arr = np.frombuffer(ptr.GetData(), dtype=np.uint8).reshape(
+                        self.image_dimensions
+                    )
+                except ValueError:
+                    continue
                 arr = cv2.cvtColor(arr, cv2.COLOR_BayerBG2BGR)
                 img = ImageData(
                     timestamp=ts,

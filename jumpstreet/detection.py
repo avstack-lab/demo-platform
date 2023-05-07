@@ -13,7 +13,7 @@ from avstack.calibration import read_calibration_from_line
 from avstack.modules.perception.detections import (
     format_data_container_as_string,
 )
-from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
+from avstack.modules.perception.object2dfv import MMDetObjectDetector2D, JetsonInference2D
 from avstack.sensors import ImageData
 from avstack.modules.perception.detections import RazDetection
 from avstack.datastructs import DataContainer
@@ -83,9 +83,9 @@ class ObjectDetector(BaseClass):
 
         # -- decompress data (NZ)
         if "camera" in metadata["msg"]["identifier"]:
-            decoded_frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
-            array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
-            metadata["shape"] = array.shape
+            if metadata["msg"]["encoded"]:
+                decoded_frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
+                array = np.array(decoded_frame)  # ndarray with d = (h, w, 3)
         elif "radar" in metadata["msg"]["identifier"]:
             pass
         else:
@@ -154,6 +154,8 @@ class ImageObjectDetector(ObjectDetector):
                     )
                 else:
                     raise e
+        elif detector == "jetson":
+            self.model = JetsonInference2D(dataset=dataset, model=model, threshold=threshold)
         elif model in ["none", None]:
             logging.warning("Not running true object detection")
             self.model = None
@@ -177,7 +179,7 @@ class ImageObjectDetector(ObjectDetector):
                 frame=frame,
                 source_ID=identifier,
                 source_name="camera",
-                data=np.reshape(array, metadata["shape"]),
+                data=np.reshape(array, (metadata["msg"]["height"], metadata["msg"]["width"], -1)),
                 calibration=calib,
             )
 

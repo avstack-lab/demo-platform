@@ -3,7 +3,7 @@ modules:
   broker:
     config: "broker/default.yml"
   detection:
-    config: "detection/camera.yml"
+    config: "detection/jetson_camera.yml"
   tracking:
     config: "tracking/camera.yml"
   display:
