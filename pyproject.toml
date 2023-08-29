@@ -21,7 +21,7 @@ jsonpickle = "^3.0"
 lib-avstack-core = {path="third_party/lib-avstack-core", develop=true}
 lib-avstack-api = {path="third_party/lib-avstack-api", develop=true}
 lib-rad = {path="third_party/lib-rad", develop=true}
-# PyQt5 = "^5.15.9"
+PyQt5 = "^5.15.9"
 vext-pyqt5 = "^0.7.4"
 websocket-client = "^1.5.1"
 spinnaker_python = [

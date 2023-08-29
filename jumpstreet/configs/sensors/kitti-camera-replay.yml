@@ -5,6 +5,7 @@ dataset: "kitti"
 data_dir: "./data/KITTI"
 split: "train"
 scene: "object/2011_09_26_drive_0005_sync"
+preload: false
 serial: Null
 width: 1242
 height: 375

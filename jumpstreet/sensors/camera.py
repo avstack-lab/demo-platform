@@ -111,7 +111,7 @@ class Camera(Sensor):
         g = config.calibration.intrinsics.g
         P = np.array([[fx, g, u, 0], [0, fy, v, 0], [0, 0, 1, 0]])
         img_shape = (config.height, config.width)
-        self.calibration = CameraCalibration(self.extrinsics, P, img_shape)
+        self.calibration = CameraCalibration(self.reference, P, img_shape)
         self.jpg_compression_pct = config.jpg_compression_pct
 
     def _send_image_data(self, img, ts, frame):
@@ -147,7 +147,7 @@ class Camera(Sensor):
             "frame": frame,
             "channel_order": channel_order,
             "identifier": self.identifier,
-            "calibration": self.calibration.format_as_string(),
+            "calibration": self.calibration.encode(),
             "encoded": jpg_encoded,
             "height": new_h,
             "width": new_w,

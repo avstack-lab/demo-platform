@@ -5,6 +5,7 @@ dataset: "nuScenes"
 data_dir: "./data/nuScenes"
 split: "v1.0-mini"
 scene: "scene-0103"
+preload: false
 serial: Null
 width: 1600
 height: 900

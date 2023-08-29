@@ -4,10 +4,12 @@ import argparse
 import logging
 
 import zmq
+import json
+
+from avstack.geometry import GlobalOrigin3D
 from avstack.datastructs import DelayManagedDataBuffer
-from avstack.modules.perception.detections import get_data_container_from_line
+from avstack.modules.perception.detections import DetectionContainerDecoder
 from avstack.modules.tracking import tracker2d, tracker3d
-from avstack.modules.tracking.tracks import format_data_container_as_string
 
 from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
@@ -34,6 +36,7 @@ class ObjectTracker(BaseClass):
         frontend,
         backend,
         dt_delay=0.1,
+        reference=GlobalOrigin3D,
         verbose=False,
         debug=False,
     ) -> None:
@@ -71,6 +74,7 @@ class ObjectTracker(BaseClass):
         self.detection_buffer = DelayManagedDataBuffer(
             dt_delay=dt_delay, max_size=30, method="event-driven"
         )
+        self.reference = reference
         self.poller = zmq.Poller()
         self.poller.register(self.frontend, zmq.POLLIN)
 
@@ -80,7 +84,7 @@ class ObjectTracker(BaseClass):
         if self.frontend in sockets:
             # -- get data from frontend
             key, data = self.frontend.recv_multipart()
-            detections = get_data_container_from_line(data.decode())
+            detections = json.loads(data.decode(), cls=DetectionContainerDecoder)
             # -- put detections on the buffer
             self.detection_buffer.push(detections)
 
@@ -96,23 +100,16 @@ class ObjectTracker(BaseClass):
                         f"Processing detections frame: {detections.frame:4d}, time: {detections.timestamp:.4f}",
                         end="\n",
                     )
-                try:
-                    tracks = self.model(
-                        detections_2d=detections,
-                        t=detections.timestamp,
-                        frame=detections.frame,
-                        identifier="tracker-0",
-                    )
-                except TypeError:
-                    tracks = self.model(
-                        detections_nd=detections,
-                        t=detections.timestamp,
-                        frame=detections.frame,
-                        identifier="tracker-0",
-                    )
+                tracks = self.model(
+                    detections=detections,
+                    t=detections.timestamp,
+                    frame=detections.frame,
+                    identifier="tracker-0",
+                    platform=self.reference,
+                )
                 if self.debug:
                     self.print(f"currently maintaining {len(tracks)} tracks", end="\n")
-                tracks = format_data_container_as_string(tracks).encode()
+                tracks = str.encode(tracks.encode())
 
                 # -- send data at backend
                 self.backend.send_multipart([b"tracks", tracks])

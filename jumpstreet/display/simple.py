@@ -8,7 +8,7 @@ Runs the front-end which includes:
 import argparse
 import logging
 import sys
-import os
+import json
 
 import numpy as np
 import zmq
@@ -19,10 +19,10 @@ from PyQt5.QtWidgets import QApplication
 import jumpstreet
 from jumpstreet.utils import config_as_namespace
 
+from avstack.calibration import CalibrationDecoder
 from avstack.sensors import ImageData
-from avstack.calibration import read_calibration_from_line
-from avstack.datastructs import BasicDataBuffer, DataContainer, DelayManagedDataBuffer
-from avstack.modules.tracking.tracks import get_data_container_from_line
+from avstack.modules.tracking.tracks import TrackContainerDecoder
+from avstack.datastructs import BasicDataBuffer, DelayManagedDataBuffer
 
 
 class MainLoop(QObject):
@@ -115,7 +115,7 @@ class MainLoop(QObject):
                     timestamp = msg["timestamp"]
                     frame = msg["frame"]
                     identifier = msg["identifier"]
-                    calib = read_calibration_from_line(msg["calibration"])
+                    calib = json.loads(msg["calibration"], cls=CalibrationDecoder)
                     image = ImageData(
                         timestamp=timestamp,
                         frame=frame,
@@ -133,10 +133,14 @@ class MainLoop(QObject):
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
-                    track_data_container = get_data_container_from_line(
+                    track_data_container = json.loads(
                         data.decode(),
-                        identifier_override=self.display_cam_id,
+                        cls=TrackContainerDecoder
                     )
+                    # HACK: overrite the camera identifier
+                    track_data_container.source_identifier = self.display_cam_id
+                        # identifier_override=self.display_cam_id,
+                    
                     if self.debug:
                         self.print(
                             f"received tracks at time: {track_data_container.timestamp}",

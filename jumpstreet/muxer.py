@@ -6,7 +6,6 @@ import numpy as np
 
 import cv2
 from avstack.datastructs import DataContainer
-from avstack.geometry import NominalOriginStandard
 from avstack.modules.tracking import tracks as track_types
 from jumpstreet.utils import BaseClass
 

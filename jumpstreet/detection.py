@@ -8,12 +8,14 @@ from time import sleep
 
 import cv2
 import numpy as np
+import json
 import zmq
-from avstack.calibration import read_calibration_from_line
-from avstack.modules.perception.detections import (
-    format_data_container_as_string,
-)
-from avstack.modules.perception.object2dfv import MMDetObjectDetector2D, JetsonInference2D
+from avstack.calibration import CalibrationDecoder
+from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
+try:
+    from avstack.modules.perception.object2dfv import JetsonInference2D
+except ImportError:
+    print('Cannot import jetson functions')
 from avstack.sensors import ImageData
 from avstack.modules.perception.detections import RazDetection
 from avstack.datastructs import DataContainer
@@ -94,7 +96,7 @@ class ObjectDetector(BaseClass):
         # -- process data
         detections = self.detect(metadata, array)
         if detections is not None:
-            detections = format_data_container_as_string(detections).encode()
+            detections = str.encode(detections.encode())
         else:
             detections = b"No detections yet"
 
@@ -173,7 +175,7 @@ class ImageObjectDetector(ObjectDetector):
             timestamp = metadata["msg"]["timestamp"]
             frame = metadata["msg"]["frame"]
             identifier = metadata["msg"]["identifier"]
-            calib = read_calibration_from_line(metadata["msg"]["calibration"])
+            calib = json.loads(metadata["msg"]["calibration"], cls=CalibrationDecoder)
             image = ImageData(
                 timestamp=timestamp,
                 frame=frame,

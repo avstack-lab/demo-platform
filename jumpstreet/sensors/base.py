@@ -1,7 +1,6 @@
 import numpy as np
-import quaternion
 import zmq
-from avstack.geometry import Origin
+from avstack.geometry import ReferenceFrame, GlobalOrigin3D
 
 from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
 
@@ -50,7 +49,7 @@ class Sensor(BaseClass):
                 config.calibration.extrinsics.qz,
             ]
         )
-        self.extrinsics = Origin(dx, q)
+        self.reference = ReferenceFrame(dx, q, reference=GlobalOrigin3D)
         self.time_monitor = TimeMonitor()
 
     def initialize(self):

@@ -1,3 +1,5 @@
+
+*.vscode
 .install.stamp
 *.png
 *.jpg
