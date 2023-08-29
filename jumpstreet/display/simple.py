@@ -6,23 +6,22 @@ Runs the front-end which includes:
 """
 
 import argparse
+import json
 import logging
 import sys
-import json
 
 import numpy as np
 import zmq
+from avstack.calibration import CalibrationDecoder
+from avstack.datastructs import BasicDataBuffer, DelayManagedDataBuffer
+from avstack.modules.tracking.tracks import TrackContainerDecoder
+from avstack.sensors import ImageData
 from cv2 import IMREAD_COLOR, imdecode
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 
 import jumpstreet
 from jumpstreet.utils import config_as_namespace
-
-from avstack.calibration import CalibrationDecoder
-from avstack.sensors import ImageData
-from avstack.modules.tracking.tracks import TrackContainerDecoder
-from avstack.datastructs import BasicDataBuffer, DelayManagedDataBuffer
 
 
 class MainLoop(QObject):
@@ -128,19 +127,17 @@ class MainLoop(QObject):
                     if self.debug:
                         self.print(f"received frame at time: {timestamp}", end="\n")
                     self.video_buffer.push(image)
-                    
 
                 # -- add track data to buffer
                 if self.frontend_tracks in socks:
                     key, data = self.frontend_tracks.recv_multipart()
                     track_data_container = json.loads(
-                        data.decode(),
-                        cls=TrackContainerDecoder
+                        data.decode(), cls=TrackContainerDecoder
                     )
                     # HACK: overrite the camera identifier
                     track_data_container.source_identifier = self.display_cam_id
-                        # identifier_override=self.display_cam_id,
-                    
+                    # identifier_override=self.display_cam_id,
+
                     if self.debug:
                         self.print(
                             f"received tracks at time: {track_data_container.timestamp}",
@@ -150,7 +147,7 @@ class MainLoop(QObject):
 
                 # -- emit an image, subject to a delay factor
                 image_out = self.muxer.emit_one()
-                if (self.display_cam_id in image_out):
+                if self.display_cam_id in image_out:
                     if self.debug:
                         self.print(f"emitting image to display", end="\n")
                     try:

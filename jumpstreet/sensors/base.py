@@ -1,6 +1,6 @@
 import numpy as np
 import zmq
-from avstack.geometry import ReferenceFrame, GlobalOrigin3D
+from avstack.geometry import GlobalOrigin3D, ReferenceFrame
 
 from jumpstreet.utils import BaseClass, TimeMonitor, init_some_end
 

@@ -2,11 +2,12 @@ import logging
 import threading
 import time
 from bisect import bisect
-import numpy as np
 
 import cv2
+import numpy as np
 from avstack.datastructs import DataContainer
 from avstack.modules.tracking import tracks as track_types
+
 from jumpstreet.utils import BaseClass
 
 
@@ -59,7 +60,7 @@ class VideoTrackMuxer(BaseClass):
 
     def process(self):
         """Check the data buffer and add any muxed frames that we can
-        
+
         Step 1: mux anything that we can
             -- pop tracks and apply to image
             -- keep that image on the buffer
@@ -89,7 +90,9 @@ class VideoTrackMuxer(BaseClass):
                             for j in range(len(prior_tracks)):  # going in order
                                 if prior_tracks[j] >= prior_images[i]:
                                     self.mux(data_images[i], data_tracks[j])
-                                    self.t_last_muxed = max(self.t_last_muxed, prior_images[i])
+                                    self.t_last_muxed = max(
+                                        self.t_last_muxed, prior_images[i]
+                                    )
                                     break  # only mux an image once
 
     def mux(self, image, tracks):
@@ -97,7 +100,7 @@ class VideoTrackMuxer(BaseClass):
         color = (36, 255, 12)
         thickness = 2
         img = image.data
-        if image.calibration.channel_order == 'rgb':
+        if image.calibration.channel_order == "rgb":
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if self.debug:
             self.print(
@@ -130,15 +133,21 @@ class VideoTrackMuxer(BaseClass):
             elif isinstance(track, track_types.XyFromRazTrack):
                 # -- project to image center
                 # TODO: incorporate the radar extrinsics as origin from rad calib
-                xyzh_cam = np.array([-0.5-track.position[1], 0, track.position[0], 1])  # HACK to account for shift
+                xyzh_cam = np.array(
+                    [-0.5 - track.position[1], 0, track.position[0], 1]
+                )  # HACK to account for shift
                 xy_img = image.calibration.P @ xyzh_cam
                 xy_img /= xy_img[2]
 
                 # -- draw circle for point
-                img = cv2.circle(img,
-                                 (int(xy_img[0]), int(xy_img[1])),
-                                 radius=6, color=(0,255,0), thickness=-1)
-                
+                img = cv2.circle(
+                    img,
+                    (int(xy_img[0]), int(xy_img[1])),
+                    radius=6,
+                    color=(0, 255, 0),
+                    thickness=-1,
+                )
+
                 # -- draw text information
                 # TODO
             else:

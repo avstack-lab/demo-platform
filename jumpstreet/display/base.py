@@ -9,6 +9,7 @@ import os
 import cv2
 import numpy as np
 
+
 os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 #################################################################
 
@@ -132,16 +133,16 @@ class QImageViewer(QMainWindow):
                 return
             self.show_image(image)
 
-    def show_image_from_array(self, image, channel_order='bgr'):
+    def show_image_from_array(self, image, channel_order="bgr"):
         """Input is a numpy array"""
         h, w, _ = image.shape
-        if channel_order == 'bgr':
+        if channel_order == "bgr":
             try:
                 img_form = QImage.Format_BGR888
             except AttributeError:
                 img_form = QImage.Format_RGB888
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                channel_order = 'rgb'
+                channel_order = "rgb"
         else:
             raise NotImplementedError
         qimage = QImage(image.data, w, h, 3 * w, img_form)

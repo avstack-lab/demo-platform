@@ -3,18 +3,20 @@ import time
 
 import cv2
 import numpy as np
-from tqdm import tqdm
 from avapi import get_scene_manager
 from avstack.calibration import CameraCalibration
 from avstack.sensors import ImageData
+from tqdm import tqdm
+
 from jumpstreet.utils import BaseClass
 
 from .base import Sensor
 
+
 try:
     import PySpin
 except ImportError:
-    print('Cannot import pyspin')
+    print("Cannot import pyspin")
 
 
 STOP_KEY = "q"
@@ -27,11 +29,13 @@ class NearRealTimeImageLoader(BaseClass):
     It is expected that this will perform the necessary sleep
     process to enable near-correct-time sending
     """
+
     NAME = "image-loader"
-    def __init__(self, dataset, framerate=None, preload=False, verbose=True, debug=False) -> None:
-        super().__init__(
-            name=self.NAME, identifier=0, verbose=verbose, debug=debug
-        )
+
+    def __init__(
+        self, dataset, framerate=None, preload=False, verbose=True, debug=False
+    ) -> None:
+        super().__init__(name=self.NAME, identifier=0, verbose=verbose, debug=debug)
         self.dataset = dataset
         self.ds_interval = 1.0 / dataset.framerate
         if framerate is None:
@@ -40,7 +44,10 @@ class NearRealTimeImageLoader(BaseClass):
             self.interval = 1.0 / framerate
         self.increment = self.interval / self.ds_interval
         if self.verbose:
-            self.print(f'Loading images at {1.0/self.interval:.2f} FPS, img increment is {self.increment:.2f}', end='\n')
+            self.print(
+                f"Loading images at {1.0/self.interval:.2f} FPS, img increment is {self.increment:.2f}",
+                end="\n",
+            )
         self.i_next_img = 0
         self.counter = 0
         self.last_load_time = 0
@@ -53,7 +60,9 @@ class NearRealTimeImageLoader(BaseClass):
         if self.preload:
             self.images = []
             if self.verbose:
-                self.print(f'Loading {len(self.dataset)} images into memory...', end='\n')
+                self.print(
+                    f"Loading {len(self.dataset)} images into memory...", end="\n"
+                )
             for frame in tqdm(self.dataset.frames):
                 self.images.append(self.dataset.get_image(frame, "main_camera"))
 
@@ -72,7 +81,7 @@ class NearRealTimeImageLoader(BaseClass):
             )
         ts = self.counter * self.interval
         self.counter += 1
-        self.i_next_img = int( (self.i_next_img + self.increment) % len(self.dataset) )
+        self.i_next_img = int((self.i_next_img + self.increment) % len(self.dataset))
         t_post = time.time()
         if self.t0 is None:
             self.t0 = t_post
@@ -165,7 +174,9 @@ class ReplayCamera(Camera):
         SM = get_scene_manager(config.dataset, config.data_dir, config.split)
         SD = SM.get_scene_dataset_by_name(config.scene)
         self.dataset = SD
-        self.image_loader = NearRealTimeImageLoader(dataset=SD, framerate=config.fps, preload=config.preload)
+        self.image_loader = NearRealTimeImageLoader(
+            dataset=SD, framerate=config.fps, preload=config.preload
+        )
 
     def send(self):
         img, ts = self.image_loader.load_next()
@@ -226,7 +237,8 @@ class PySpinCamera(Camera):
                 try:
                     self.handle.Init()
                     self.print(
-                        f"Successfully connected to {self.config.model} via serial number", end='\n'
+                        f"Successfully connected to {self.config.model} via serial number",
+                        end="\n",
                     )
                     break
                 except PySpin.SpinnakerException:

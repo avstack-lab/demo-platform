@@ -1,10 +1,11 @@
 import time
 
-import rad
 import numpy as np
-from .base import Sensor
+import rad
 from avstack.calibration import Calibration
 from avstack.geometry.transformations import matrix_cartesian_to_spherical
+
+from .base import Sensor
 
 
 class Radar(Sensor):
@@ -23,7 +24,7 @@ class Radar(Sensor):
             refresh_rate=self.config.refresh_rate,
             verbose=False,
         )
-    
+
     def _send_radar_data(self, razelrrt, ts, frame):
         # -- send across comms channel
         msg = {
@@ -37,7 +38,7 @@ class Radar(Sensor):
             self.print(
                 f"sending data, frame: {msg['frame']:4d}, timestamp: {msg['timestamp']:.4f}",
                 end="\n",
-                )
+            )
 
 
 class TiRadar(Radar):
@@ -75,8 +76,12 @@ class TiRadar(Radar):
                 xyzrrt = self.radar.read_serial()
                 if xyzrrt is None:
                     continue
-                razelrrt = matrix_cartesian_to_spherical(np.array([xyzrrt[:,1], -xyzrrt[:,0], xyzrrt[:,2], xyzrrt[:,3]]).T)
-                razelrrt = razelrrt[razelrrt[:,0] > self.min_range, :]
+                razelrrt = matrix_cartesian_to_spherical(
+                    np.array(
+                        [xyzrrt[:, 1], -xyzrrt[:, 0], xyzrrt[:, 2], xyzrrt[:, 3]]
+                    ).T
+                )
+                razelrrt = razelrrt[razelrrt[:, 0] > self.min_range, :]
                 timestamp = time.time()
                 self._send_radar_data(razelrrt, timestamp, self.frame)
                 self.frame += 1

@@ -101,11 +101,14 @@ class LoadBalancingBrokerXSub(BaseClass):
                     # -- primary worker
                     if self.debug:
                         self.print(
-                            f"received {data_type} array of size {array.shape}", end="\n"
+                            f"received {data_type} array of size {array.shape}",
+                            end="\n",
                         )
                     if self.backend_ready[data_type]:
                         worker = self.workers[data_type].pop(0)
-                        client = f"OK-{data_type}".encode()  # TODO: why is this needed???
+                        client = (
+                            f"OK-{data_type}".encode()
+                        )  # TODO: why is this needed???
                         self.backend.send_array_envelope(
                             worker, client, msg, array, copy=False
                         )

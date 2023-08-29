@@ -96,7 +96,16 @@ def config_as_namespace(config_file):
 
 
 def init_some_end(
-    cls, context, end_type, pattern, TRANSPORT, HOST, PORT, BIND=False, subopts=None, HWM=None,
+    cls,
+    context,
+    end_type,
+    pattern,
+    TRANSPORT,
+    HOST,
+    PORT,
+    BIND=False,
+    subopts=None,
+    HWM=None,
 ):
     socket = context.socket(pattern)
     if BIND:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 import multiprocessing
 from functools import partial
@@ -8,17 +9,18 @@ from time import sleep
 
 import cv2
 import numpy as np
-import json
 import zmq
 from avstack.calibration import CalibrationDecoder
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
+
+
 try:
     from avstack.modules.perception.object2dfv import JetsonInference2D
 except ImportError:
-    print('Cannot import jetson functions')
-from avstack.sensors import ImageData
-from avstack.modules.perception.detections import RazDetection
+    print("Cannot import jetson functions")
 from avstack.datastructs import DataContainer
+from avstack.modules.perception.detections import RazDetection
+from avstack.sensors import ImageData
 
 from jumpstreet.context import SerializingContext
 from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
@@ -157,7 +159,9 @@ class ImageObjectDetector(ObjectDetector):
                 else:
                     raise e
         elif detector == "jetson":
-            self.model = JetsonInference2D(dataset=dataset, model=model, threshold=threshold)
+            self.model = JetsonInference2D(
+                dataset=dataset, model=model, threshold=threshold
+            )
         elif model in ["none", None]:
             logging.warning("Not running true object detection")
             self.model = None
@@ -181,7 +185,9 @@ class ImageObjectDetector(ObjectDetector):
                 frame=frame,
                 source_ID=identifier,
                 source_name="camera",
-                data=np.reshape(array, (metadata["msg"]["height"], metadata["msg"]["width"], -1)),
+                data=np.reshape(
+                    array, (metadata["msg"]["height"], metadata["msg"]["width"], -1)
+                ),
                 calibration=calib,
             )
 
@@ -191,7 +197,8 @@ class ImageObjectDetector(ObjectDetector):
             )
             if self.debug:
                 self.print(
-                    f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}, {len(detections)} detections", end="\n"
+                    f"Image frame: {frame:4d}, timestamp: {timestamp:.4f}, {len(detections)} detections",
+                    end="\n",
                 )
         else:
             detections = None
@@ -231,11 +238,23 @@ class RadarObjectDetector(ObjectDetector):
 
     def set_model(self, detector, dataset, model, threshold):
         if model == "passthrough":
+
             def msmts_to_dc(metadata, array):
                 dets = []
                 for i in range(array.shape[0]):
-                    dets.append(RazDetection(source_identifier=metadata["msg"]["identifier"], raz=array[i,:2]))
-                return DataContainer(frame=metadata["msg"]["frame"], timestamp=metadata["msg"]["timestamp"], data=dets, source_identifier=metadata["msg"]["identifier"])
+                    dets.append(
+                        RazDetection(
+                            source_identifier=metadata["msg"]["identifier"],
+                            raz=array[i, :2],
+                        )
+                    )
+                return DataContainer(
+                    frame=metadata["msg"]["frame"],
+                    timestamp=metadata["msg"]["timestamp"],
+                    data=dets,
+                    source_identifier=metadata["msg"]["identifier"],
+                )
+
             self.model = msmts_to_dc
         else:
             raise NotImplementedError(model)

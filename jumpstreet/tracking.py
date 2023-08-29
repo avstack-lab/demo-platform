@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 
 import zmq
-import json
-
-from avstack.geometry import GlobalOrigin3D
 from avstack.datastructs import DelayManagedDataBuffer
+from avstack.geometry import GlobalOrigin3D
 from avstack.modules.perception.detections import DetectionContainerDecoder
 from avstack.modules.tracking import tracker2d, tracker3d
 
