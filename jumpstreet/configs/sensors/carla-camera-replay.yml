@@ -2,9 +2,10 @@
 type: "camera"
 sensor_class: "ReplayCamera"
 dataset: "carla"
-data_dir: "./data/CARLA/carla-object-v1"
+data_dir: "./data/CARLA/multi-agent-v1"
+preload: false
 split: ""
-scene: "run_2022_10_27_10:20:59"
+scene: "run_2023_09_13_18:02:08"
 serial: Null
 width: 1600
 height: 900
