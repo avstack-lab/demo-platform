@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 
 
-os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+# os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 #################################################################
 
 from PyQt5.QtCore import Qt, QThread
@@ -91,7 +91,7 @@ class StreamThrough(Display):
 
 
 class QImageViewer(QMainWindow):
-    def __init__(self, width=800, height=800):
+    def __init__(self, width: int=800, height: int=800):
         super().__init__()
         self.printer = QPrinter()
         self.scaleFactor = 0.0
@@ -113,7 +113,7 @@ class QImageViewer(QMainWindow):
         self.createMenus()
 
         self.setWindowTitle("Image Viewer")
-        self.resize(width, height)
+        self.resize(int(width), int(height))
 
     def open(self):
         options = QFileDialog.Options()
