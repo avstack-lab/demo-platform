@@ -2,6 +2,7 @@ import argparse
 import multiprocessing
 import os
 import time
+import shutil
 
 import jumpstreet
 from jumpstreet.utils import config_as_namespace
@@ -56,6 +57,8 @@ def config_path(config):
 
 def main(config):
     """Start up the processes with configs"""
+    if os.path.exists('profiles'):
+        shutil.rmtree('profiles')
     control = Controller(
         broker=config_as_namespace(config.modules.broker.config),
         detection=config_as_namespace(config.modules.detection.config),

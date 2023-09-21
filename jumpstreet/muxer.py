@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from avstack.datastructs import DataContainer
 from avstack.modules.tracking import tracks as track_types
+from avstack.utils.decorators import profileit
 
 from jumpstreet.utils import BaseClass
 
@@ -58,6 +59,7 @@ class VideoTrackMuxer(BaseClass):
     def emit_one(self):
         return self.video_buffer.emit_one()
 
+    @profileit(f'profile_muxer.prof', folder='profiles')
     def process(self):
         """Check the data buffer and add any muxed frames that we can
 

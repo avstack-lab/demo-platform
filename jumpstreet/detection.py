@@ -13,6 +13,7 @@ import zmq
 from avstack.calibration import CalibrationDecoder
 from avstack.modules.perception.object2dfv import MMDetObjectDetector2D
 
+from avstack.utils.decorators import profileit
 
 try:
     from avstack.modules.perception.object2dfv import JetsonInference2D
@@ -77,7 +78,13 @@ class ObjectDetector(BaseClass):
         if self.verbose:
             self.print(f"ready to start", end="\n")
 
-    def poll(self):
+        # -- hack to get unique profile name...
+        @profileit(f'profile_detector_{self.identifier}.prof', folder='profiles')
+        def poll(*args, **kwargs):
+            return self._poll(*args, **kwargs)
+        self.poll = poll
+
+    def _poll(self):
         """Poll for messages
 
         Address is the place to send back data

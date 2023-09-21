@@ -67,7 +67,7 @@ class TimeMonitor(BaseClass):
                 dt = np.mean(self.dt_history)
                 fps = 1.0 / dt
                 std = np.std([1.0 / dt for dt in self.dt_history])
-                self.print(f"FPS: {fps:4.2f},   FPS std: {1./std:2.3f}", end="\r")
+                self.print(f"FPS: {fps:5.2f},   FPS std: {std:4.3f}", end="\r")
 
 
 class SocketConfig:

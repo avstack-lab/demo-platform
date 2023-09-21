@@ -10,6 +10,8 @@ from avstack.geometry import GlobalOrigin3D
 from avstack.modules.perception.detections import DetectionContainerDecoder
 from avstack.modules.tracking import tracker2d, tracker3d
 
+from avstack.utils.decorators import profileit
+
 from jumpstreet.utils import BaseClass, config_as_namespace, init_some_end
 
 
@@ -77,7 +79,13 @@ class ObjectTracker(BaseClass):
         self.poller = zmq.Poller()
         self.poller.register(self.frontend, zmq.POLLIN)
 
-    def poll(self):
+        # -- hack to get unique profile name...
+        @profileit(f'profile_tracker.prof', folder='profiles')
+        def poll(*args, **kwargs):
+            return self._poll(*args, **kwargs)
+        self.poll = poll
+
+    def _poll(self):
         sockets = dict(self.poller.poll())
 
         if self.frontend in sockets:
