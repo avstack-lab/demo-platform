@@ -15,9 +15,9 @@ workers:
   image:
     n_workers: 2
     detector: mmdetection
-    model: fasterrcnn
-    dataset: 'kitti'
-    # dataset: coco-person
+    model: faster_rcnn
+    dataset: coco-person
+    runtime: tensorrt
     threshold: 0.50
   radar:
     n_workers: 0

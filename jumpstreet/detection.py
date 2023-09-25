@@ -38,6 +38,7 @@ class ObjectDetector(BaseClass):
         dataset,
         model,
         threshold,
+        runtime,
         verbose=False,
         debug=False,
     ) -> None:
@@ -69,7 +70,7 @@ class ObjectDetector(BaseClass):
             backend.port,
             BIND=backend.bind,
         )
-        self.set_model(detector, dataset, model, threshold)
+        self.set_model(detector, dataset, model, threshold, runtime)
         if self.verbose:
             self.print("initialized perception model!", end="\n")
 
@@ -133,8 +134,9 @@ class ImageObjectDetector(ObjectDetector):
         identifier,
         detector="mmdetection",
         dataset="coco-person",
-        model="fasterrcnn",
+        model="faster_rcnn",
         threshold=0.5,
+        runtime="tensorrt",
         verbose=False,
         debug=False,
     ) -> None:
@@ -147,21 +149,22 @@ class ImageObjectDetector(ObjectDetector):
             dataset,
             model,
             threshold,
+            runtime,
             verbose,
             debug,
         )
 
-    def set_model(self, detector, dataset, model, threshold):
+    def set_model(self, detector, dataset, model, threshold, runtime):
         # -- set up perception model
         if detector == "mmdetection":
             try:
                 self.model = MMDetObjectDetector2D(
-                    dataset=dataset, model=model, threshold=threshold, gpu=0
+                    dataset=dataset, model=model, threshold=threshold, gpu=0, deploy=True, deploy_runtime=runtime,
                 )
             except RuntimeError as e:
                 if "CUDA error: out of memory" in str(e):
                     self.model = MMDetObjectDetector2D(
-                        dataset=dataset, model=model, threshold=threshold, gpu=1
+                        dataset=dataset, model=model, threshold=threshold, gpu=1, deploy=True, deploy_runtime=runtime,
                     )
                 else:
                     raise e
@@ -226,6 +229,7 @@ class RadarObjectDetector(ObjectDetector):
         dataset=None,
         model="passthrough",
         threshold=0.5,
+        runtime=None,
         verbose=True,
         debug=False,
     ) -> None:
@@ -238,12 +242,13 @@ class RadarObjectDetector(ObjectDetector):
             dataset,
             model,
             threshold,
+            None,
             verbose,
             debug,
         )
         self.passthrough = model == "passthrough"
 
-    def set_model(self, detector, dataset, model, threshold):
+    def set_model(self, detector, dataset, model, threshold, runtime):
         if model == "passthrough":
 
             def msmts_to_dc(metadata, array):
@@ -289,6 +294,7 @@ def main_single(
     dataset,
     model,
     threshold,
+    runtime,
     verbose,
     debug,
 ):
@@ -309,6 +315,7 @@ def main_single(
         dataset=dataset,
         model=model,
         threshold=threshold,
+        runtime=runtime,
         verbose=verbose,
         debug=debug,
     )
@@ -340,6 +347,7 @@ def main(config):
             dataset=config.workers.image.dataset,
             model=config.workers.image.model,
             threshold=config.workers.image.threshold,
+            runtime=config.workers.image.runtime,
             verbose=config.verbose,
             debug=config.debug,
         )
@@ -355,6 +363,7 @@ def main(config):
             dataset=config.workers.radar.dataset,
             model=config.workers.radar.model,
             threshold=config.workers.radar.threshold,
+            runtime=None,
             verbose=config.verbose,
             debug=config.debug,
         )
