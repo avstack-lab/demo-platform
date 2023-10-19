@@ -14,4 +14,4 @@ backend:
 model: sort
 
 verbose: True
-debug: False
+debug: True

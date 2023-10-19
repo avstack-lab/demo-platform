@@ -15,10 +15,10 @@ workers:
   image:
     n_workers: 2
     detector: mmdetection
-    model: faster_rcnn
-    dataset: coco-person
+    model: rtmdet
+    dataset: coco
     runtime: tensorrt
-    threshold: 0.1
+    threshold: 0.50
   radar:
     n_workers: 0
     detector: Null

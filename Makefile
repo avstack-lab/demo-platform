@@ -45,10 +45,15 @@ format: $(INSTALL_STAMP)
 test: $(INSTALL_STAMP)
 		$(POETRY) run pytest ./tests/ --cov-report term-missing --cov-fail-under 0 --cov $(NAME)
 
-.PHONY: controller
-controller: $(INSTALL_STAMP)
+.PHONY: jetson_controller
+jetson_controller: $(INSTALL_STAMP)
+	$(POETRY) run python jumpstreet/controller.py \
+		--config controller/jetson_$(CCONF).yml
+
+.PHONY: desktop_controller
+desktop_controller: $(INSTALL_STAMP)
 		$(POETRY) run python jumpstreet/controller.py \
-			--config controller/$(PLATFORM)_$(CCONF).yml
+			--config controller/desktop_$(CCONF).yml
 
 .PHONY: mot15_replay
 mot15_replay: $(INSTALL_STAMP)

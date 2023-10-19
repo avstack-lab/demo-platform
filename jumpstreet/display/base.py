@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 
 
-# os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 #################################################################
 
 from PyQt5.QtCore import Qt, QThread

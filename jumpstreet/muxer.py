@@ -71,9 +71,9 @@ class VideoTrackMuxer(BaseClass):
             -- Emit a frame once it hits the delay timing
         """
         if self.debug:
-            self.print(self.video_buffer, end="\n")
-            self.print(self.track_buffer, end="\n")
-        # self.print(len(self.video_buffer), end="\n")
+            self.print(f'Video Buffer: {self.video_buffer}', end="\n")
+            self.print(f'Track Buffer: {self.track_buffer}', end="\n")
+
         # -- if we have tracks, let's mux if possible
         for video_id, video_bucket in self.video_buffer.data.items():
             if len(video_bucket) > 0:
