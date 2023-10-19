@@ -9,8 +9,10 @@ import os
 import cv2
 import numpy as np
 
-
-os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+try:
+    os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+except KeyError:
+    pass
 #################################################################
 
 from PyQt5.QtCore import Qt, QThread
